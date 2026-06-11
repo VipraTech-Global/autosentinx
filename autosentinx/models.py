@@ -36,8 +36,11 @@ class Attempt(SQLModel, table=True):
     """One objective/play run against the target within a campaign."""
     id: Optional[int] = Field(default=None, primary_key=True)
     run_id: str = Field(foreign_key="run.id", index=True)
-    objective_id: str  # play/scenario id, e.g. SC-020 (the technique used)
+    objective_id: str  # human run label, e.g. "actor-attack→disclosure.undisclosed-ai"
     objective_slug: str = Field(default="", index=True)  # catalog objective tested (Phase 3)
+    technique_slug: str = Field(default="", index=True)  # technique used (Phase 4)
+    persona_slug: str = Field(default="")                # persona modifier (Phase 4)
+    csrt: bool = False                                   # CSRT code-switch modifier applied (Phase 4)
     mode: str
     rule: str = ""
     persona: str = ""
@@ -122,16 +125,35 @@ class ObjectiveControlMap(SQLModel, table=True):
 
 
 class Technique(SQLModel, table=True):
-    """A3 technique registry — STUB (Phase 4 fills it). Created now so the link table has a target."""
+    """A3 technique registry (Phase 4) — an abstract, objective-agnostic attack strategy.
+
+    The composable engine builds an attack from technique.strategy + technique.phase_plan + the resolved
+    objective goal + a persona modifier. One technique drives many objectives (gated by applicable_modes).
+    """
     id: Optional[int] = Field(default=None, primary_key=True)
     slug: str = Field(index=True, unique=True)
     title: str = ""
-    technique_class: str = ""                         # drive | probe | elicitation | …
-    note: str = ""
+    technique_class: str = "drive"                    # drive | probe
+    strategy: str = ""                                # objective-agnostic strategy (system-prompt fragment)
+    phase_plan: str = ""                              # JSON list of {name, intent, advance_when}
+    applicable_modes: str = ""                        # JSON list of spine modes, or "*"
+    modifiers: str = ""                               # JSON list of compatible modifiers (e.g. csrt)
+    provenance: str = ""                              # PLAGUE / ActorAttack / Crescendo / …
+    status: str = Field(default="active", index=True)
+
+
+class Persona(SQLModel, table=True):
+    """A reusable Hinglish caller persona — an orthogonal strategy-modifier (ADR 0011 §4)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    slug: str = Field(index=True, unique=True)
+    title: str = ""
+    description: str = ""
+    attributes: str = ""                              # JSON tags (register/gender/region) — for fairness later
+    status: str = Field(default="active", index=True)
 
 
 class ObjectiveTechniqueMap(SQLModel, table=True):
-    """M:N objective ↔ technique link — STUB (Phase 4 populates; selection reads this)."""
+    """M:N objective ↔ technique link (Phase 4 materializes it; Phase 5 selection reads it)."""
     id: Optional[int] = Field(default=None, primary_key=True)
     objective_slug: str = Field(index=True)
     technique_slug: str = Field(index=True)

@@ -68,15 +68,24 @@ class AaravTarget:
         return card
 
     async def start_session(self, contact_id: int) -> dict:
-        """Returns the full start payload: session_id, contact_name, agent_text, compliance_*."""
+        """Returns the full start payload: session_id, contact_name, agent_text, compliance_*.
+
+        On an HTTP error (e.g. a transient 404, or a contact the target rejects) return a no-session
+        dict instead of raising, so the runner's _next_startable rotates to the next contact rather
+        than failing the whole attempt.
+        """
         url = self._endpoints.get("voice_start") or f"{self.base}/voice/call/start"
         body: dict = {"contact_id": contact_id}
         s = get_settings()
         if s.aarav_force_current_time:  # forces AARAV's settings-aware window path (avoids hardcoded 10-7 default)
             body["current_time"] = s.aarav_force_current_time
-        r = await self._client.post(url, headers=self._headers(), json=body)
-        r.raise_for_status()
-        return r.json()
+        try:
+            r = await self._client.post(url, headers=self._headers(), json=body)
+            r.raise_for_status()
+            return r.json()
+        except httpx.HTTPStatusError as e:
+            return {"compliance_status": f"HTTP {e.response.status_code}",
+                    "compliance_reason": f"start failed for contact {contact_id}"}
 
     async def send_turn(self, session_id: str, message: str) -> dict:
         tmpl = self._endpoints.get("voice_respond_template") or \

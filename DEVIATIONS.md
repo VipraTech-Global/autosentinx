@@ -31,9 +31,12 @@ later phase · **Benign** = nuance, no real divergence · **Not-yet** = on the r
   full crosswalk); the play is now pure technique `{id, objective_slug, persona, phases}` and references the
   objective by slug; the runner resolves slug → `ObjectiveSpec` and feeds the attacker/classifier/judge from
   it. Single source of truth for the "what". Integrity test guards every play→slug.
-- **Residual:** the **technique** registry is still the prompt-lib placeholder (the `technique` table is a
-  stub) — the A3 library fills it in **Phase 4**. So the objective↔technique *link* is implicit (one slug per
-  play) until Phase 4 makes it M:N.
+- **Fully RESOLVED (Phase 4, 2026-06-11):** the **technique** registry is now first-class — 6 composable,
+  objective-agnostic techniques (`technique-seed/`) + a 5-persona library (`persona-seed/`), with a
+  **materialized M:N `objective_technique_map`** (118 edges, gated by `applicable_modes` + testability). The
+  attacker is a **composable engine** (`Objective × Technique × Persona [× CSRT]`); the 28 hardcoded plays are
+  retired (`prompt-lib/` obsolete). Three decoupled registries with real many-to-many links — the architecture's
+  core shape (ADR 0014) is now live.
 
 ### D4 — Prompt-lib built FROM the xlsx  — *Objective lane re-converged (Phase 3); technique lane pending*
 - **Architecture (ADR 0011):** objectives authored from scratch; the xlsx is reference-only.
@@ -82,6 +85,18 @@ later phase · **Benign** = nuance, no real divergence · **Not-yet** = on the r
   `anthropic-claude-sonnet-4`, region `global` — raise from 0 to e.g. 60/min. (Enable the model in Vertex
   Model Garden first if the quota row isn't offered.) The panel then picks Claude up automatically (env-driven),
   giving true 3-judge diversity with no code change.
+
+### D9 — Classifier early-stop can truncate multi-turn techniques  — *Known limitation (Phase 4)*
+- **Behaviour:** the in-call fuzzy classifier early-stops the loop on a "Succeed" label. It sometimes
+  false-positives on a benign turn 0 (e.g. AARAV merely naming itself), ending the call at 1 turn — before a
+  multi-turn technique (actor-attack, crescendo) can develop. The 3-judge panel then correctly DEFENDS (no
+  real violation), so verdicts stay sound, but the *technique* never got to run. Observed: actor-attack
+  defended at 1 turn on `disclosure.undisclosed-ai` while direct-probe/crescendo/authority-pressure succeeded.
+- **Architecture:** ADR 0009 uses the fuzzy classifier to *drive the behaviour-tree branch*, not to hard-stop;
+  Unknown→restart, Refusal→reroute. Our early-stop on Succeed is a Phase-1 simplification.
+- **Re-converge:** make the classifier signal *advance/branch* rather than terminate (or require the in-call
+  Succeed to be corroborated before stopping); have multi-turn techniques front-load less and not abort on a
+  premature signal. Candidate for Phase 5 (selection treats truncated runs as low-reward) / attacker tuning.
 
 ---
 

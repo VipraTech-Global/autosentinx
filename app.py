@@ -18,9 +18,9 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
 
 from autosentinx.catalog import Catalog
 from autosentinx.config import get_settings
+from autosentinx.library import Library, enumerate_runs
 from autosentinx.llm import make_llm
 from autosentinx.models import Run
-from autosentinx.playlib import load_plays
 from autosentinx.runner import Runner
 from autosentinx.store import SqlModelStore
 from autosentinx.target import AaravTarget
@@ -61,31 +61,36 @@ async def health():
 @app.post("/scan")
 async def scan(
     background: BackgroundTasks,
-    modes: Optional[list[str]] = Query(None, description="filter by mode, e.g. COERCION"),
-    ids: Optional[list[str]] = Query(None, description="specific scenario ids, e.g. SC-008"),
-    limit: Optional[int] = Query(None, description="cap number of plays"),
+    objectives: Optional[list[str]] = Query(None, description="objective slugs, e.g. disclosure.undisclosed-ai"),
+    modes: Optional[list[str]] = Query(None, description="filter by spine mode, e.g. COERCION"),
+    techniques: Optional[list[str]] = Query(None, description="technique slugs, e.g. actor-attack"),
+    n_per_objective: Optional[int] = Query(None, description="cap techniques per objective"),
+    csrt: str = Query("off", description="CSRT modifier: off | on | both"),
+    include_draft: bool = Query(False, description="include draft (Phase-6) objectives"),
+    limit: Optional[int] = Query(None, description="cap total runs"),
 ):
+    """Launch a campaign: enumerate Objective × Technique × Persona [× CSRT] and run them."""
     s = get_settings()
-    plays = load_plays("prompt-lib")
-    if modes:  # plays no longer carry mode — resolve it via the catalog (objective_slug → mode)
-        cat = await Catalog.load()
-        want = {m.upper() for m in modes}
-        plays = [p for p in plays
-                 if (sp := cat.get(p.objective_slug)) and sp.mode.upper() in want]
-    if ids:
-        want_ids = set(ids)
-        plays = [p for p in plays if p.id in want_ids]
+    catalog = await Catalog.load()
+    library = await Library.load()
+    runspecs = enumerate_runs(
+        catalog, library, objective_slugs=objectives, modes=modes, technique_slugs=techniques,
+        include_draft=include_draft, n_per_objective=n_per_objective, csrt_mode=csrt,
+    )
     if limit:
-        plays = plays[:limit]
-    if not plays:
-        raise HTTPException(status_code=400, detail="no plays match the selection")
+        runspecs = runspecs[:limit]
+    if not runspecs:
+        raise HTTPException(status_code=400, detail="no objective×technique runs match the selection")
 
-    run = Run(target_url=s.aarav_base_url, note=f"phase1 campaign ({len(plays)} plays)")
+    run = Run(target_url=s.aarav_base_url, note=f"phase4 campaign ({len(runspecs)} runs)")
     await store.create_run(run)
     runner = Runner()
     # dispatch seam — BackgroundTask now; swap to arq+Redis at deploy
-    background.add_task(runner.run_campaign, run.id, plays, s.aarav_default_contact_id)
-    return {"run_id": run.id, "num_plays": len(plays), "plays": [p.id for p in plays], "status": "running"}
+    background.add_task(runner.run_campaign, run.id, runspecs)
+    return {
+        "run_id": run.id, "num_runs": len(runspecs), "status": "running",
+        "runs": [rs.label for rs in runspecs[:50]],
+    }
 
 
 @app.get("/catalog")
@@ -122,51 +127,82 @@ async def catalog(
 
 @app.get("/catalog/coverage")
 async def catalog_coverage():
-    """Which objectives/modes have >=1 play, and which are gradeable today vs draft (Phase-6 oracle)."""
+    """Objective × Technique coverage grid: how many techniques apply per objective/mode, gradeable vs draft."""
     cat = await Catalog.load()
-    plays = load_plays("prompt-lib")
-    play_slugs = collections.Counter(p.objective_slug for p in plays)
+    lib = await Library.load()
     by_mode: dict = {}
     objectives = []
     for o in cat.all():
-        n = play_slugs.get(o.slug, 0)
+        techs = lib.techniques_for(o.slug)
         objectives.append({
             "slug": o.slug, "mode": o.mode, "status": o.status, "gradeable": o.gradeable,
-            "num_plays": n,
+            "num_techniques": len(techs), "techniques": techs,
         })
-        m = by_mode.setdefault(o.mode, {"objectives": 0, "with_plays": 0, "plays": 0, "draft": 0})
+        m = by_mode.setdefault(o.mode, {"objectives": 0, "with_techniques": 0, "pairs": 0, "draft": 0})
         m["objectives"] += 1
-        m["with_plays"] += 1 if n else 0
-        m["plays"] += n
+        m["with_techniques"] += 1 if techs else 0
+        m["pairs"] += len(techs)
         m["draft"] += 1 if o.status == "draft" else 0
     return {
-        "spine": "spine-v1.0",
+        "spine": "spine-v1.0", "techniques": [t.slug for t in lib.techniques()],
+        "personas": [p.slug for p in lib.personas()],
         "totals": {
             "objectives": len(cat), "modes": len(by_mode),
-            "objectives_with_plays": sum(1 for o in objectives if o["num_plays"]),
+            "objectives_with_techniques": sum(1 for o in objectives if o["num_techniques"]),
             "gradeable": sum(1 for o in objectives if o["gradeable"]),
             "draft": sum(1 for o in objectives if o["status"] == "draft"),
-            "plays_mapped": sum(play_slugs.values()),
+            "objective_technique_pairs": sum(o["num_techniques"] for o in objectives),
         },
         "by_mode": by_mode,
-        "objectives": sorted(objectives, key=lambda x: (-x["num_plays"], x["mode"])),
+        "objectives": sorted(objectives, key=lambda x: (-x["num_techniques"], x["mode"])),
     }
 
 
 @app.get("/catalog/{slug}")
 async def catalog_objective(slug: str):
     cat = await Catalog.load()
+    lib = await Library.load()
     o = cat.get(slug)
     if not o:
         raise HTTPException(status_code=404, detail="objective not found")
-    plays = [p.id for p in load_plays("prompt-lib") if p.objective_slug == slug]
     return {
         "slug": o.slug, "title": o.title, "description": o.goal, "mode": o.mode, "family": o.family,
         "pillar": o.primary_pillar, "severity": o.severity, "status": o.status,
         "testability": o.testability, "gradeable": o.gradeable, "tags": o.tags,
         "success_definition": o.success_definition, "rule": o.rule,
         "crosswalk": [e.model_dump() for e in o.crosswalk],
-        "plays": plays,
+        "techniques": lib.techniques_for(slug),
+    }
+
+
+@app.get("/techniques")
+async def techniques():
+    lib = await Library.load()
+    return {
+        "count": len(lib.techniques()),
+        "techniques": [
+            {
+                "slug": t.slug, "title": t.title, "class": t.technique_class,
+                "applicable_modes": t.applicable_modes, "modifiers": t.modifiers,
+                "provenance": t.provenance, "status": t.status,
+                "phases": [p.name for p in t.phase_plan],
+            }
+            for t in lib.techniques()
+        ],
+        "personas": [{"slug": p.slug, "title": p.title, "attributes": p.attributes} for p in lib.personas()],
+    }
+
+
+@app.get("/techniques/{slug}")
+async def technique_detail(slug: str):
+    lib = await Library.load()
+    t = lib.technique(slug)
+    if not t:
+        raise HTTPException(status_code=404, detail="technique not found")
+    return {
+        "slug": t.slug, "title": t.title, "class": t.technique_class, "strategy": t.strategy,
+        "applicable_modes": t.applicable_modes, "modifiers": t.modifiers, "provenance": t.provenance,
+        "phase_plan": [p.model_dump() for p in t.phase_plan],
     }
 
 
@@ -210,8 +246,9 @@ async def transcript(run_id: str):
         att = a["attempt"]
         out["attempts"].append({
             "objective": att.objective_id, "objective_slug": att.objective_slug,
+            "technique": att.technique_slug, "persona": att.persona_slug, "csrt": att.csrt,
             "mode": att.mode, "outcome": att.outcome,
-            "verdict_score": att.verdict_score, "rule": att.rule, "persona": att.persona,
+            "verdict_score": att.verdict_score, "rule": att.rule,
             "error": att.error,
             "judge_votes": json.loads(att.judge_votes or "[]"),
             "detector_hits": json.loads(att.detector_hits or "[]"),
