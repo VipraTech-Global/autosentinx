@@ -1,0 +1,29 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+
+# --- Secrets / environment ---
+.env
+.env.*
+!.env.example
+
+# --- Corpus-derived / generated (regenerate via scripts/build_prompt_lib.py) ---
+prompt-lib/
+objectives/
+
+# --- Run artifacts / logs ---
+runs/
+*.log
+
+# --- Local planning/design docs (not part of the shipped code) ---
+BUILD-APPROACH.md
+TECH-PLAN.md
+PHASE-*.md
+
+# --- OS / editors ---
+.DS_Store
+.idea/
+.vscode/
