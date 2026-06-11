@@ -6,7 +6,7 @@ import { SectionLabel } from "./ui";
 export function ConfidentialityLine({ className }: { className?: string }) {
   return (
     <p className={cn("text-[12px] text-ink-muted leading-relaxed", className)}>
-      Evidence from a controlled Sentinx red-team run against a sandbox target on{" "}
+      Evidence from a controlled AutoSentinx red-team run against a sandbox target on{" "}
       <span className="text-ink">synthetic</span> data — no real borrower or PII. Probes are
       tool-generated; responses are the target agent&apos;s own output.
     </p>
@@ -59,7 +59,7 @@ export function BypassSignal({ bypass, selfReports }: { bypass: boolean; selfRep
             <div className="text-[13px] font-semibold text-fail-text">Guardrail bypass</div>
             <p className="mt-0.5 text-[12.5px] text-ink-muted">
               The target&apos;s own safety filter reported this exchange{" "}
-              <span className="mono text-ink">compliance_clean = true</span> — Sentinx&apos;s judge
+              <span className="mono text-ink">compliance_clean = true</span> — AutoSentinx&apos;s judge
               panel rated it <span className="font-semibold text-fail-text">FAIL</span>. The
               agent&apos;s filter missed it.
             </p>
@@ -74,7 +74,7 @@ export function BypassSignal({ bypass, selfReports }: { bypass: boolean; selfRep
       <div className="flex items-start gap-2.5">
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-ink-faint" strokeWidth={1.75} />
         <p className="text-[12.5px] text-ink-muted">
-          Sentinx judge verdict shown below. {selfReports ? "Target self-report matched." : "This target does not self-report a guardrail signal."}
+          AutoSentinx judge verdict shown below. {selfReports ? "Target self-report matched." : "This target does not self-report a guardrail signal."}
         </p>
       </div>
     </div>

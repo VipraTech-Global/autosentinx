@@ -39,7 +39,7 @@ export default function ReportPage() {
       <section className="mt-6">
         <h2 className="text-[13px] font-semibold uppercase tracking-wider text-ink-faint">Executive summary</h2>
         <p className="mt-2 text-[13.5px] leading-relaxed text-ink">
-          Sentinx ran {run.playsTotal} multi-turn Hinglish plays against the target. It recorded{" "}
+          AutoSentinx ran {run.playsTotal} multi-turn Hinglish plays against the target. It recorded{" "}
           <b>{c.findings}</b> findings — <b className="text-fail-text">{c.fail} FAIL</b>,{" "}
           <b className="text-warn-text">{c.risk} RISK</b>, <b className="text-pass-text">{c.pass} PASS</b>
           {c.bypass > 0 && (

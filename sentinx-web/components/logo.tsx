@@ -36,7 +36,7 @@ export function Logo({
       <RadarMark className={cn("text-brand", markClassName)} />
       {showWord && (
         <span className="font-semibold tracking-tight text-ink text-[15px]">
-          Sentin<span className="text-brand">X</span>
+          AutoSentin<span className="text-brand">X</span>
         </span>
       )}
     </span>

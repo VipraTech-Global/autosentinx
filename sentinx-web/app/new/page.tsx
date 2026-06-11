@@ -55,7 +55,7 @@ export default function RunConfigPage() {
           <form onSubmit={run}>
             <h1 className="text-xl font-semibold tracking-tight text-ink">New audit</h1>
             <p className="mt-1 text-[13px] text-ink-muted">
-              Point Sentinx at a target voice agent and run one evaluation.
+              Point AutoSentinx at a target voice agent and run one evaluation.
             </p>
 
             <div className="mt-6 space-y-4">
@@ -111,7 +111,7 @@ export default function RunConfigPage() {
             </div>
             <h2 className="mt-4 text-lg font-semibold text-ink">Approve &amp; run</h2>
             <p className="mt-1 text-[13px] text-ink-muted">
-              Sentinx requires human approval before any campaign executes (Rules of Engagement).
+              AutoSentinx requires human approval before any campaign executes (Rules of Engagement).
             </p>
 
             <dl className="mt-5 space-y-2 rounded-md border border-border bg-surface-sunk p-4 text-[12.5px]">

@@ -30,7 +30,7 @@ export default function GlobalError({
         }}
       >
         <div style={{ maxWidth: 420, padding: 24, border: "1px solid #dce3ec", borderRadius: 8, background: "#fff" }}>
-          <h1 style={{ fontSize: 16, color: "#c5302a", margin: 0 }}>Sentinx failed to load</h1>
+          <h1 style={{ fontSize: 16, color: "#c5302a", margin: 0 }}>AutoSentinx failed to load</h1>
           <p style={{ fontSize: 13, color: "#586273" }}>A top-level error occurred (logged to console + server).</p>
           <pre style={{ fontSize: 12, background: "#eef2f6", padding: 12, borderRadius: 4, overflow: "auto" }}>
             {error.message}

@@ -34,6 +34,12 @@
 
   --shadow-elev: 0 1px 2px rgba(15, 23, 34, .06), 0 4px 12px rgba(15, 23, 34, .05);
   --ring: var(--brand);
+
+  /* marketing background grid (light): dark ink dots, brand connectors */
+  --grid-size: 44px;
+  --grid-dot-rgb: 15, 23, 34;        /* --ink as r,g,b for the reactive canvas */
+  --grid-line-rgb: 29, 91, 214;      /* --brand as r,g,b */
+  --grid-dot-idle: rgba(15, 23, 34, 0.05);
 }
 
 /* ============================================================
@@ -67,6 +73,11 @@
   --sev-low: #94a3b8;      --sev-low-text: #94a3b8;
 
   --shadow-elev: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 18px rgba(0, 0, 0, .35);
+
+  /* marketing background grid (dark): light dots, brand connectors */
+  --grid-dot-rgb: 230, 235, 241;     /* --ink (dark) as r,g,b */
+  --grid-line-rgb: 94, 155, 255;     /* --brand (dark) as r,g,b */
+  --grid-dot-idle: rgba(230, 235, 241, 0.14);
 }
 
 /* ============================================================
@@ -119,6 +130,7 @@
    Base
    ============================================================ */
 @layer base {
+  html { scroll-behavior: smooth; }
   body {
     background: var(--bg);
     color: var(--ink);
@@ -143,6 +155,205 @@
   to { opacity: 1; transform: none; }
 }
 .reveal { animation: reveal .28s ease-out both; }
+
+/* ============================================================
+   MARKETING LANDING — Latticly-style surface, theme-aware.
+   Every value resolves from the SENTINX tokens so light & dark
+   are both first-class. Only used by app/page.tsx.
+   ============================================================ */
+
+.font-display {
+  font-family: var(--font-space-grotesk), var(--font-geist-sans), ui-sans-serif, sans-serif;
+}
+
+/* Static idle dot grid (always visible; also the reduced-motion fallback) */
+.dot-grid {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: radial-gradient(var(--grid-dot-idle) 0.75px, transparent 0.75px);
+  background-size: var(--grid-size) var(--grid-size);
+  filter: blur(1.4px);
+}
+/* Cursor-reactive overlay canvas */
+.dot-grid-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  filter: blur(1.4px);
+}
+
+/* Brand→indigo gradient text (hero accent, metrics) */
+.text-gradient {
+  background: linear-gradient(110deg, var(--brand) 10%, var(--metric) 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Glass — solid elevated card in light, frosted translucency in dark */
+.glass {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-elev);
+}
+.dark .glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+}
+
+/* Eyebrow label */
+.section-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+
+/* Feature cards */
+.feature-card {
+  position: relative;
+  border-radius: 1rem;
+  padding: 1.6rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-elev);
+  transition: border-color 0.25s ease, transform 0.25s ease;
+}
+.dark .feature-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015));
+  box-shadow: none;
+}
+.feature-card:hover { border-color: var(--brand); transform: translateY(-3px); }
+.feature-icon {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.7rem;
+  color: var(--brand);
+  background: var(--brand-soft);
+  border: 1px solid color-mix(in srgb, var(--brand) 30%, transparent);
+}
+
+/* Step cards */
+.step-card {
+  position: relative;
+  border-radius: 1rem;
+  padding: 1.8rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-elev);
+}
+.dark .step-card {
+  background: rgba(255, 255, 255, 0.025);
+  box-shadow: none;
+}
+.step-num {
+  font-family: var(--font-space-grotesk), var(--font-geist-sans), sans-serif;
+  font-size: 2.1rem;
+  font-weight: 700;
+  line-height: 1;
+  color: color-mix(in srgb, var(--brand) 45%, transparent);
+}
+
+/* Metrics */
+.metric-num {
+  font-family: var(--font-space-grotesk), var(--font-geist-sans), sans-serif;
+  font-size: clamp(2.4rem, 5vw, 3rem);
+  font-weight: 700;
+  line-height: 1;
+  background: linear-gradient(110deg, var(--brand), var(--metric));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* FAQ accordion (native <details>) */
+.faq {
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 1.05rem 1.25rem;
+}
+.dark .faq { background: rgba(255, 255, 255, 0.025); }
+.faq summary {
+  cursor: pointer;
+  list-style: none;
+  font-weight: 600;
+  color: var(--ink);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after {
+  content: "+";
+  color: var(--brand);
+  font-size: 1.4rem;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+.faq[open] summary::after { transform: rotate(45deg); }
+.faq p { color: var(--ink-muted); margin-top: 0.8rem; line-height: 1.65; font-size: 0.95rem; }
+
+/* CTA buttons — gradient fill + brand glow + lift */
+.btn-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  border-radius: 0.6rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--on-brand);
+  background: linear-gradient(180deg, var(--brand), var(--brand-strong));
+  box-shadow: 0 8px 30px color-mix(in srgb, var(--brand) 30%, transparent);
+  transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+.btn-cta:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+  box-shadow: 0 10px 36px color-mix(in srgb, var(--brand) 42%, transparent);
+}
+.btn-cta-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  border-radius: 0.6rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--ink);
+  border: 1px solid var(--border);
+  background: transparent;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+}
+.btn-cta-ghost:hover {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  transform: translateY(-1px);
+}
+
+/* CTA section glow */
+.cta-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(560px 220px at 50% 0%, var(--brand-soft), transparent 70%);
+}
 
 /* Report always renders light (PDF / print parity, D-Q5) */
 .force-light {
