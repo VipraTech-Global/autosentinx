@@ -62,3 +62,7 @@ class SqlModelStore:
     async def list_runs(self) -> list[Run]:
         async with SessionLocal() as s:
             return list((await s.execute(select(Run).order_by(Run.created_at.desc()))).scalars().all())
+
+    async def all_attempts(self) -> list[Attempt]:
+        async with SessionLocal() as s:
+            return list((await s.execute(select(Attempt))).scalars().all())

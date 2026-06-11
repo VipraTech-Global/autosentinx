@@ -158,3 +158,21 @@ class ObjectiveTechniqueMap(SQLModel, table=True):
     objective_slug: str = Field(index=True)
     technique_slug: str = Field(index=True)
     modifiers: str = ""                               # JSON: CSRT/phonetic/persona-variation/voice
+
+
+class TechniqueStat(SQLModel, table=True):
+    """Discounted-UCB bandit memory per (objective, technique) — Phase 5 H1.
+
+    Persists across campaigns (the seed of the deferred lifecycle/H3). `n_disc`/`s_disc` are the
+    γ-discounted pull-count and reward-sum (value = s_disc/n_disc); `raw_*` are undiscounted, for ASR
+    reporting. AutoRedTeamer-style memory, upgraded to a real bandit.
+    """
+    __table_args__ = (UniqueConstraint("objective_slug", "technique_slug", name="uq_objtech_stat"),)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    objective_slug: str = Field(index=True)
+    technique_slug: str = Field(index=True)
+    n_disc: float = 0.0            # discounted pull count
+    s_disc: float = 0.0            # discounted reward sum
+    raw_count: int = 0             # total pulls (reporting)
+    raw_successes: int = 0         # total SUCCEEDED (reporting / ASR)
+    updated_at: datetime = Field(default_factory=_now)

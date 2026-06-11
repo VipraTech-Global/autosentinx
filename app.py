@@ -18,10 +18,12 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
 
 from autosentinx.catalog import Catalog
 from autosentinx.config import get_settings
+from autosentinx.coverage import build_archive
 from autosentinx.library import Library, enumerate_runs
 from autosentinx.llm import make_llm
 from autosentinx.models import Run
 from autosentinx.runner import Runner
+from autosentinx.selection import Selector
 from autosentinx.store import SqlModelStore
 from autosentinx.target import AaravTarget
 
@@ -61,16 +63,30 @@ async def health():
 @app.post("/scan")
 async def scan(
     background: BackgroundTasks,
+    strategy: str = Query("ucb", description="ucb | random | exhaustive"),
+    budget: int = Query(40, description="number of attacks (ucb/random strategies)"),
     objectives: Optional[list[str]] = Query(None, description="objective slugs, e.g. disclosure.undisclosed-ai"),
     modes: Optional[list[str]] = Query(None, description="filter by spine mode, e.g. COERCION"),
-    techniques: Optional[list[str]] = Query(None, description="technique slugs, e.g. actor-attack"),
-    n_per_objective: Optional[int] = Query(None, description="cap techniques per objective"),
+    techniques: Optional[list[str]] = Query(None, description="technique slugs (exhaustive only)"),
+    n_per_objective: Optional[int] = Query(None, description="cap techniques per objective (exhaustive)"),
     csrt: str = Query("off", description="CSRT modifier: off | on | both"),
     include_draft: bool = Query(False, description="include draft (Phase-6) objectives"),
-    limit: Optional[int] = Query(None, description="cap total runs"),
+    limit: Optional[int] = Query(None, description="cap total runs (exhaustive)"),
 ):
-    """Launch a campaign: enumerate Objective × Technique × Persona [× CSRT] and run them."""
+    """Launch a campaign.
+
+    strategy=ucb|random → budget-driven selection (Phase 5): round-robin objectives × selected technique.
+    strategy=exhaustive → enumerate every gated Objective × Technique × Persona [× CSRT] and run all.
+    """
     s = get_settings()
+    runner = Runner()
+    csrt_on = csrt in ("on", "both")
+    if strategy in ("ucb", "random"):
+        run = Run(target_url=s.aarav_base_url, note=f"phase5 {strategy} campaign (budget={budget})")
+        await store.create_run(run)
+        background.add_task(runner.run_budget, run.id, objectives, budget, strategy, modes, csrt_on)
+        return {"run_id": run.id, "strategy": strategy, "budget": budget, "status": "running"}
+
     catalog = await Catalog.load()
     library = await Library.load()
     runspecs = enumerate_runs(
@@ -81,14 +97,11 @@ async def scan(
         runspecs = runspecs[:limit]
     if not runspecs:
         raise HTTPException(status_code=400, detail="no objective×technique runs match the selection")
-
-    run = Run(target_url=s.aarav_base_url, note=f"phase4 campaign ({len(runspecs)} runs)")
+    run = Run(target_url=s.aarav_base_url, note=f"exhaustive campaign ({len(runspecs)} runs)")
     await store.create_run(run)
-    runner = Runner()
-    # dispatch seam — BackgroundTask now; swap to arq+Redis at deploy
     background.add_task(runner.run_campaign, run.id, runspecs)
     return {
-        "run_id": run.id, "num_runs": len(runspecs), "status": "running",
+        "run_id": run.id, "strategy": "exhaustive", "num_runs": len(runspecs), "status": "running",
         "runs": [rs.label for rs in runspecs[:50]],
     }
 
@@ -204,6 +217,27 @@ async def technique_detail(slug: str):
         "applicable_modes": t.applicable_modes, "modifiers": t.modifiers, "provenance": t.provenance,
         "phase_plan": [p.model_dump() for p in t.phase_plan],
     }
+
+
+@app.get("/coverage")
+async def coverage(run_id: Optional[str] = Query(None, description="scope to one run; omit = all runs")):
+    """MAP-Elites coverage archive + QD-Score + gap register (Phase 5 H2)."""
+    if run_id:
+        d = await store.get_run(run_id)
+        if not d:
+            raise HTTPException(status_code=404, detail="run not found")
+        attempts = [a["attempt"] for a in d["attempts"]]
+    else:
+        attempts = await store.all_attempts()
+    return {"run_id": run_id, **build_archive(attempts)}
+
+
+@app.get("/selection/stats")
+async def selection_stats():
+    """The Discounted-UCB bandit value table per (objective, technique) — Phase 5 H1."""
+    catalog = await Catalog.load()
+    selector = await Selector.load(catalog)
+    return {"stats": selector.stats_table()}
 
 
 @app.get("/runs")

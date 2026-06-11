@@ -7,6 +7,7 @@ AARAV's gate reported clean.
 """
 import json
 import logging
+import random
 
 from .attacker import ComposableAttacker
 from .belief import BeliefState
@@ -19,6 +20,7 @@ from .models import Attempt, Turn
 from .oracle.detectors import run_detectors
 from .oracle.panel import JudgePanel
 from .recon import Recon, ReconProfile
+from .selection import Selector
 from .store import SqlModelStore
 from .target import AaravTarget
 
@@ -106,6 +108,72 @@ class Runner:
             await self.store.set_run_status(run_id, "completed", done, succeeded)
         except Exception:  # noqa: BLE001
             log.exception("campaign %s failed", run_id)
+            await self.store.set_run_status(run_id, "failed", done, succeeded)
+        finally:
+            await target.aclose()
+
+    async def run_budget(self, run_id: str, objective_slugs: list[str] | None, budget: int,
+                         strategy: str = "ucb", modes: list[str] | None = None, csrt: bool = False) -> None:
+        """Budget-driven campaign (Phase 5 H1): round-robin objectives (coverage) × UCB/random
+        technique selection (exploitation). strategy: ucb | random."""
+        target = AaravTarget()
+        self._idx = 0
+        succeeded = 0
+        done = 0
+        self.catalog = await Catalog.load()
+        self.library = await Library.load()
+        selector = await Selector.load(self.catalog)
+        rng = random.Random(1234)  # reproducible random baseline
+        try:
+            await target.discover_and_verify()
+            try:
+                recon = await Recon(target, self.llm, self._contact_for(0)).profile()
+                self._idx += 1
+            except Exception as e:  # noqa: BLE001
+                log.warning("recon failed: %s", e)
+                recon = ReconProfile()
+
+            objs = [o for o in self.catalog.all() if o.status == "active" and self.library.techniques_for(o.slug)]
+            if objective_slugs:
+                want = set(objective_slugs)
+                objs = [o for o in objs if o.slug in want]
+            if modes:
+                want_m = {m.upper() for m in modes}
+                objs = [o for o in objs if o.mode.upper() in want_m]
+            if not objs:
+                await self.store.set_run_status(run_id, "completed", 0, 0)
+                return
+            personas = self.library.personas()
+
+            for k in range(budget):
+                o = objs[k % len(objs)]                          # round-robin → coverage preserved
+                techs = self.library.techniques_for(o.slug)
+                tslug = rng.choice(techs) if strategy == "random" else selector.select(o.slug, o.mode, techs)
+                persona = personas[k % len(personas)]
+                rs = RunSpec(objective_slug=o.slug, technique_slug=tslug, persona_slug=persona.slug, csrt=csrt)
+                technique = self.library.technique(tslug)
+                try:
+                    cid, d = await self._next_startable(target)
+                    attempt, turns = await self._run_one(target, run_id, rs, o, technique, persona, recon, cid, d)
+                except Exception as e:  # noqa: BLE001
+                    log.exception("budget run %s failed", rs.label)
+                    attempt = Attempt(
+                        run_id=run_id, objective_id=rs.label, objective_slug=o.slug, technique_slug=tslug,
+                        persona_slug=persona.slug, csrt=csrt, mode=o.mode, rule=o.rule,
+                        persona=persona.title, outcome="error", error=str(e)[:300],
+                    )
+                    turns = []
+                if strategy == "ucb" and attempt.outcome in ("succeeded", "defended", "unknown"):
+                    await selector.observe(o.slug, o.mode, tslug, attempt.verdict_score,
+                                           attempt.outcome == "succeeded")
+                if attempt.outcome == "succeeded":
+                    succeeded += 1
+                await self.store.add_attempt(attempt, turns)
+                done += 1
+                await self.store.set_run_status(run_id, "running", done, succeeded)
+            await self.store.set_run_status(run_id, "completed", done, succeeded)
+        except Exception:  # noqa: BLE001
+            log.exception("budget campaign %s failed", run_id)
             await self.store.set_run_status(run_id, "failed", done, succeeded)
         finally:
             await target.aclose()

@@ -98,6 +98,20 @@ later phase · **Benign** = nuance, no real divergence · **Not-yet** = on the r
   Succeed to be corroborated before stopping); have multi-turn techniques front-load less and not abort on a
   premature signal. Candidate for Phase 5 (selection treats truncated runs as low-reward) / attacker tuning.
 
+### D10 — Library-health: coverage closed, lifecycle deferred  — *Partial (Phase 5)*
+- **Architecture (ADR 0012):** H1 contextual Discounted-UCB selection · H2 MAP-Elites/QD coverage · H3
+  bi-temporal lifecycle + weekly re-validation + soft retirement.
+- **Phase 5 built:** H1 selection (Discounted-UCB, **per-objective**, mode-prior warm-start, persisted
+  `technique_stat`) + H2 coverage (full 4-axis MAP-Elites archive, QD-Score, gap register) — **closes the
+  long-standing coverage/novelty [GAP]**.
+- **Deferred:** **H3 lifecycle** (bi-temporal versioning, weekly selective re-validation, active→dormant→
+  retired) — the POC is single-shot, not a continuous service; only the persisted stats (its seed) are kept.
+  Also deferred: **contextual cross-target fingerprinting** (single target — the bandit context hook is
+  stubbed; cross-target warm-start activates with multiple NBFC targets), **embedding-novelty / Self-BLEU**
+  (unreliable on Hinglish), and the **sliding-window UCB** fallback (γ-discount only for now).
+- **Re-converge:** add the lifecycle layer + contextual fingerprint when the platform runs continuously
+  against multiple customer targets.
+
 ---
 
 ## How to use
