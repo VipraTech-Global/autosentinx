@@ -52,6 +52,13 @@ class AaravTarget:
             h["Authorization"] = f"Bearer {self._bearer}"
         return h
 
+    async def connect(self) -> dict:
+        """Verify the signed agent-card (trust gate) if enabled; otherwise skip and use the REST
+        endpoints directly (default paths). Disable only for explicitly-authorized targets."""
+        if get_settings().aarav_verify_card:
+            return await self.discover_and_verify()
+        return {"verified": False, "note": "card verification skipped (AARAV_VERIFY_CARD=false)"}
+
     async def discover_and_verify(self) -> dict:
         r = await self._client.get(f"{self.base}/.well-known/agent-card.json")
         r.raise_for_status()

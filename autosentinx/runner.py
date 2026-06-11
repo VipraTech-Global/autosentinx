@@ -97,7 +97,7 @@ class Runner:
         self.catalog = await Catalog.load()
         self.library = await Library.load()
         try:
-            await target.discover_and_verify()
+            await target.connect()
             try:
                 recon = await Recon(target, self.llm, self._contact_for(0)).profile()
                 self._idx += 1
@@ -156,7 +156,7 @@ class Runner:
         selector = await Selector.load(self.catalog)
         rng = random.Random(1234)  # reproducible random baseline
         try:
-            await target.discover_and_verify()
+            await target.connect()
             try:
                 recon = await Recon(target, self.llm, self._contact_for(0)).profile()
                 self._idx += 1
@@ -222,7 +222,7 @@ class Runner:
         self.catalog = await Catalog.load()
         self.library = await Library.load()
         try:
-            await target.discover_and_verify()
+            await target.connect()
             try:
                 recon = await Recon(target, self.llm, self._contact_for(0)).profile()
                 self._idx += 1

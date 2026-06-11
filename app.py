@@ -104,10 +104,16 @@ async def health():
     except Exception as e:  # noqa: BLE001
         out["checks"]["llm"] = f"ERROR: {e}"; out["ok"] = False
     try:
-        t = AaravTarget(); await t.discover_and_verify(); await t.aclose()
-        out["checks"]["aarav_card_verified"] = True
+        s = get_settings(); t = AaravTarget()
+        if s.aarav_verify_card:
+            await t.discover_and_verify()
+            out["checks"]["aarav"] = "card-verified"
+        else:
+            r = await t._client.get(f"{t.base}/.well-known/agent-card.json")
+            out["checks"]["aarav"] = f"reachable (card unverified, HTTP {r.status_code})"
+        await t.aclose()
     except Exception as e:  # noqa: BLE001
-        out["checks"]["aarav_card_verified"] = f"ERROR: {e}"; out["ok"] = False
+        out["checks"]["aarav"] = f"ERROR: {e}"; out["ok"] = False
     try:
         await store.list_runs(); out["checks"]["neon_db"] = True
     except Exception as e:  # noqa: BLE001

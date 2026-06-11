@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     aarav_card_shared_secret: str = ""
     aarav_card_key_id: str = ""
     target_bearer_token: str = ""
+    # Verify the target's signed agent-card before scanning (our trust gate). Set False to scan a target
+    # that can't emit a signed card (e.g. a hosted AARAV without the signing secret) — then the REST
+    # endpoints are used directly. Only disable for targets you explicitly authorize.
+    aarav_verify_card: bool = True
 
     # --- LLM provider + models (fully swappable via env) ---
     # provider: gemini (Dev API) | vertex (Gemini on Google Cloud) | anthropic-vertex (Claude on
