@@ -67,9 +67,7 @@ def validate(frameworks: dict, objectives: dict) -> tuple[list[dict], list[dict]
             errs.append(f"{slug}: invalid testability {o.get('testability')!r}")
         if o.get("status", "active") not in ("active", "draft", "deprecated"):
             errs.append(f"{slug}: invalid status {o.get('status')!r}")
-        # draft modes should be marked draft (governance: their oracles are Phase 6)
-        if is_draft(mode) and o.get("status", "active") != "draft":
-            errs.append(f"{slug}: mode {mode.value} needs status=draft (oracle not built until Phase 6)")
+        # (Phase 6 built the consumer-protection oracles, so draft modes may now be active.)
         if not o.get("success_definition", "").strip():
             errs.append(f"{slug}: empty success_definition")
         # crosswalk

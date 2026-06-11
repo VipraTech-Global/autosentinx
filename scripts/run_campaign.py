@@ -28,7 +28,12 @@ from autosentinx.store import SqlModelStore
 async def main(args) -> None:
     s = get_settings()
     store = SqlModelStore()
-    if args.strategy in ("ucb", "random"):
+    if args.strategy == "fairness":
+        run = Run(target_url=s.aarav_base_url, note="phase6 cli fairness audit")
+        await store.create_run(run)
+        print(f"RUN_ID {run.id}  strategy=fairness", flush=True)
+        await Runner().run_fairness(run.id, replicates=args.replicates)
+    elif args.strategy in ("ucb", "random"):
         run = Run(target_url=s.aarav_base_url, note=f"phase5 cli {args.strategy} (budget={args.budget})")
         await store.create_run(run)
         print(f"RUN_ID {run.id}  strategy={args.strategy} budget={args.budget}", flush=True)
@@ -58,8 +63,9 @@ async def main(args) -> None:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--strategy", default="ucb", choices=["ucb", "random", "exhaustive"])
+    ap.add_argument("--strategy", default="ucb", choices=["ucb", "random", "exhaustive", "fairness"])
     ap.add_argument("--budget", type=int, default=40, help="number of attacks (ucb/random)")
+    ap.add_argument("--replicates", type=int, default=2, help="fairness: pairs per matched persona set")
     ap.add_argument("--objectives", nargs="*", default=None, help="objective slugs")
     ap.add_argument("--modes", nargs="*", default=None, help="spine modes")
     ap.add_argument("--techniques", nargs="*", default=None, help="technique slugs (exhaustive)")

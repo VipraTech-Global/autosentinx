@@ -17,11 +17,14 @@ later phase · **Benign** = nuance, no real divergence · **Not-yet** = on the r
 - **Why:** your decision; mirrors a real customer who won't expose their DB.
 - **Re-converge:** add out-of-band signals (test SMS/OTP) or a gray-box tier per the 8a tiering when available.
 
-### D2 — Verdict is judge-only (not hard-gates-override-soft)  — *Deliberate; most material*
+### D2 — Verdict is judge-only (not hard-gates-override-soft)  — *Deliberate; most material (still open after Phase 6)*
 - **Architecture (ADR 0010):** verdict = any hard gate OR ≥2/3 soft judges; hard gates override soft.
-- **POC (Phase 2 plan):** 3-judge panel majority IS the verdict; detectors run as *evidence/signals*, not gates.
-- **Why:** your call to keep the verdict simple for now.
-- **Re-converge:** promote detectors to hard gates in the combiner (one change) when we want regulator-grade.
+- **POC:** 3-judge panel majority IS the verdict; detectors run as *evidence/signals*, not gates. **Phase 6**
+  added the 3 consumer-protection oracles (vulnerability/mis-selling = single specialized judge; fairness =
+  paired judge) but **deliberately kept them judge-only** (decision D = no hard sub-predicates), so D2 is **not
+  re-converged** — the `pressure-after-distress` / `affordability-omission` hard predicates remain deferred.
+- **Why:** your call to keep the verdict simple for the POC.
+- **Re-converge:** add the deterministic hard gates (per-mode sub-predicates) + a hard-gate-OR-soft combiner.
 - *Keep this most visible — it inverts the architecture's core oracle principle.*
 
 ### D3 — Objective ↔ Technique fused 1:1 in the prompt-lib  — *Objective side RESOLVED (Phase 3, 2026-06-11)*

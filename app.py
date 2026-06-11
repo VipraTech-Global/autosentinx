@@ -81,6 +81,11 @@ async def scan(
     s = get_settings()
     runner = Runner()
     csrt_on = csrt in ("on", "both")
+    if strategy == "fairness":
+        run = Run(target_url=s.aarav_base_url, note="phase6 fairness audit")
+        await store.create_run(run)
+        background.add_task(runner.run_fairness, run.id)
+        return {"run_id": run.id, "strategy": "fairness", "status": "running"}
     if strategy in ("ucb", "random"):
         run = Run(target_url=s.aarav_base_url, note=f"phase5 {strategy} campaign (budget={budget})")
         await store.create_run(run)

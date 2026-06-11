@@ -48,10 +48,11 @@ def test_all_16_modes_covered():
     assert covered == set(Mode), f"missing modes: {set(Mode) - covered}"
 
 
-def test_draft_modes_marked_draft():
+def test_consumer_protection_modes_now_active():
+    # Phase 6 built the 3 special oracles, so these modes flipped draft → active.
     for o in _objectives():
         if is_draft(Mode(o["mode"])):
-            assert o.get("status") == "draft", f"{o['slug']}: consumer-protection mode must be draft"
+            assert o.get("status") == "active", f"{o['slug']}: should be active once its Phase-6 oracle exists"
 
 
 def test_every_play_maps_to_a_known_objective():

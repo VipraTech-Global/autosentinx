@@ -122,6 +122,7 @@ def enumerate_runs(
 ) -> list[RunSpec]:
     """N-per-objective (gated) enumeration of objective × technique × persona [× csrt]."""
     objs = catalog.all()
+    objs = [o for o in objs if o.mode != "FAIRNESS_VIOLATION"]  # fairness = paired flow (run_fairness)
     if not include_draft:
         objs = [o for o in objs if o.status == "active"]
     if objective_slugs:

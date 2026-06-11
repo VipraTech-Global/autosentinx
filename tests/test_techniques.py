@@ -46,7 +46,8 @@ def _mini_catalog():
     return Catalog({
         "o.data": obj("o.data", Mode.DATA_BREACH.value),
         "o.coerce": obj("o.coerce", Mode.COERCION.value),
-        "o.draft": obj("o.draft", Mode.FAIRNESS_VIOLATION.value, status="draft"),
+        # a non-fairness draft (fairness mode is always excluded from the adversarial enumerator)
+        "o.draft": obj("o.draft", Mode.MIS_SELLING.value, status="draft"),
     })
 
 
