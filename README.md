@@ -166,8 +166,15 @@ uv run python scripts/run_campaign.py --strategy exhaustive --modes COERCION
 
 ## API
 
+A landing page at **`/`** offers sign-up / log-in; all endpoints below (except `/health` and `/auth/*`)
+require a **JWT bearer token** from login (`Authorization: Bearer <token>`). The service is deployed public
+at the Cloud-Run level but gated by this app-level user auth. Explore + authorize at **`/docs`**.
+
 | Method | Path | Purpose |
 |---|---|---|
+| GET  | `/` | landing + login/signup page (the polished UI ships in Next.js) |
+| POST | `/auth/signup` · `/auth/login` | create account / log in → returns a JWT |
+| GET  | `/auth/me` | the current user |
 | GET  | `/health` | checks LLM · target agent-card · Neon |
 | POST | `/scan?strategy=ucb\|random\|exhaustive\|fairness&budget=K` | request a scan → **pending_approval** (governance) |
 | POST | `/runs/{id}/approve` | approve a pending scan → it runs within its RoE |

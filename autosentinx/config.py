@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     openai_base_url: str = ""                  # e.g. http://localhost:8000/v1
     openai_api_key: str = ""                   # optional for most self-hosted servers
 
+    # --- auth (JWT) ---
+    jwt_secret: str = "dev-insecure-change-me"   # MUST be set in prod (env JWT_SECRET)
+    jwt_expire_hours: int = 24
+
     # --- run ---
     max_turns: int = 8  # Phase-1: persistent, stop on Succeed or budget
     # Rotate borrowers across plays so we don't exhaust one contact's daily-attempt limit.

@@ -21,6 +21,15 @@ def _uid() -> str:
     return uuid.uuid4().hex
 
 
+class User(SQLModel, table=True):
+    """An application user (Phase: auth). Login/signup via /auth/*; protects the API with a JWT."""
+    id: str = Field(default_factory=_uid, primary_key=True)
+    email: str = Field(index=True, unique=True)
+    hashed_password: str
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=_now)
+
+
 class Run(SQLModel, table=True):
     """A scan campaign."""
     id: str = Field(default_factory=_uid, primary_key=True)

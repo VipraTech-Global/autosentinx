@@ -14,7 +14,9 @@ import sys
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from pydantic import BaseModel
 
 from autosentinx.audit import append_event, verify_chain
 from autosentinx.catalog import Catalog
@@ -24,11 +26,13 @@ from autosentinx.db import SessionLocal
 from autosentinx.ingestion import ingest
 from autosentinx.library import Library, enumerate_runs
 from autosentinx.llm import make_llm
-from autosentinx.models import Run, _now
+from autosentinx.models import Run, User, _now
 from autosentinx.runner import Runner
+from autosentinx.security import _decode, authenticate, create_access_token, create_user, current_user
 from autosentinx.selection import Selector
 from autosentinx.store import SqlModelStore
 from autosentinx.target import AaravTarget
+from autosentinx.web import LANDING_HTML
 
 
 @asynccontextmanager
@@ -40,8 +44,56 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="autosentinx-poc", version="0.2.0", lifespan=lifespan)
+app = FastAPI(title="AutoSentinx", version="1.0.0", lifespan=lifespan)
 store = SqlModelStore()
+
+# --- auth gate: every path except the open set requires a valid bearer token ---
+_OPEN_PATHS = {"/", "/health", "/auth/signup", "/auth/login", "/docs", "/redoc",
+               "/openapi.json", "/favicon.ico"}
+
+
+@app.middleware("http")
+async def require_auth(request: Request, call_next):
+    path = request.url.path
+    if path in _OPEN_PATHS or path.startswith(("/docs", "/redoc", "/static")):
+        return await call_next(request)
+    auth = request.headers.get("authorization", "")
+    if not auth.lower().startswith("bearer "):
+        return JSONResponse({"detail": "not authenticated — log in at / and send a Bearer token"}, status_code=401)
+    try:
+        _decode(auth.split(" ", 1)[1])
+    except HTTPException as e:
+        return JSONResponse({"detail": e.detail}, status_code=e.status_code)
+    return await call_next(request)
+
+
+class Credentials(BaseModel):
+    email: str
+    password: str
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def landing():
+    return LANDING_HTML
+
+
+@app.post("/auth/signup")
+async def signup(body: Credentials):
+    if len(body.password) < 8:
+        raise HTTPException(400, "password must be at least 8 characters")
+    user = await create_user(body.email, body.password)
+    return {"access_token": create_access_token(user.email), "token_type": "bearer", "email": user.email}
+
+
+@app.post("/auth/login")
+async def login(body: Credentials):
+    user = await authenticate(body.email, body.password)
+    return {"access_token": create_access_token(user.email), "token_type": "bearer", "email": user.email}
+
+
+@app.get("/auth/me")
+async def me(user: User = Depends(current_user)):
+    return {"email": user.email, "created_at": user.created_at.isoformat()}
 
 
 @app.get("/health")
