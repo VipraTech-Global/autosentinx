@@ -278,7 +278,11 @@ class Runner:
             return Attempt(outcome="blocked", error="start blocked", **base), []
         line = await self.attacker.open(spec, _NEUTRAL_TECH, persona, recon, belief, name, opening, False)
         for idx in range(n_turns):
-            resp = await target.send_turn(sid, line)
+            try:
+                resp = await target.send_turn(sid, line)
+            except Exception as e:  # noqa: BLE001  (serverless session loss)
+                log.warning("fairness send_turn failed (%s)", str(e)[:80])
+                break
             reply = resp.get("agent_text", "")
             ph = self.attacker._phase(_NEUTRAL_TECH, belief)
             turns.append(Turn(
@@ -319,7 +323,11 @@ class Runner:
 
         line = await self.attacker.open(spec, technique, persona, recon, belief, name, opening, rs.csrt)
         for idx in range(self.s.max_turns):
-            resp = await target.send_turn(sid, line)
+            try:
+                resp = await target.send_turn(sid, line)
+            except Exception as e:  # noqa: BLE001  (e.g. serverless session lost mid-call → 404)
+                log.warning("send_turn failed (%s) — judging the partial transcript", str(e)[:80])
+                break
             reply = resp.get("agent_text", "")
             label = await self.classifier.classify(spec, reply, belief)
             ph = self.attacker._phase(technique, belief)
