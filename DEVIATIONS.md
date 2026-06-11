@@ -49,11 +49,15 @@ later phase · **Benign** = nuance, no real divergence · **Not-yet** = on the r
 - **Residual:** the **plays** (technique: persona + phases) are still xlsx-derived; they now merely *point at*
   catalog objectives. The technique lane re-converges when the A3 library + ingestion land (Phase 4/7).
 
-### D5 — A2A "dropped" but the connection is A2A-flavored  — *Benign*
-- **Architecture (ADR 0013):** A2A dropped; use AARAV's native REST.
-- **POC:** we fetch + HMAC-verify AARAV's **signed agent-card** (A2A-style discovery/trust), then call REST.
-- **Why:** that's how AARAV actually authenticates external scanners.
-- **Re-converge:** none needed — "A2A is not our internal model," but the card-based connect is fine.
+### D5 — Signed-card trust gate is optional (disabled for the hosted AARAV)  — *Benign / config*
+- **Architecture (ADR 0013):** A2A dropped; use AARAV's native REST. POC adds a signed agent-card
+  (HMAC-SHA256) discovery/trust gate before scanning.
+- **POC:** `AaravTarget.connect()` verifies the signed card when `AARAV_VERIFY_CARD=true` (default). The
+  **hosted AARAV** (`https://aarav-repo.vercel.app`) can't emit a signed card (its Vercel env lacks the
+  signing secret), so we set `AARAV_VERIFY_CARD=false` — the REST `/voice/call/*` endpoints (callable without
+  auth) are used directly. The user explicitly authorized this target.
+- **Re-converge:** set `AARAV_CARD_SHARED_SECRET` (+ kid) in the hosted AARAV's Vercel env to restore the
+  signed-card trust gate; then flip `AARAV_VERIFY_CARD=true`.
 
 ### D6 — Governance not yet present  — *RESOLVED (Phase 7, 2026-06-12)*
 - **Architecture (P2/A12, ADR 0002):** per-campaign human approval + RoE + immutable audit.
