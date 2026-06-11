@@ -28,3 +28,6 @@ PHASE-*.md
 .idea/
 .vscode/*
 !.vscode/settings.json
+
+# Cloud Run env vars (contains secrets)
+deploy.env.yaml

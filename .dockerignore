@@ -1,0 +1,14 @@
+.git
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.env
+deploy.env.yaml
+.vscode
+prompt-lib
+PHASE-*.md
+BUILD-APPROACH.md
+TECH-PLAN.md
+*.xlsx
+.ruff_cache

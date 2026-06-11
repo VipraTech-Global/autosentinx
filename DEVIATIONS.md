@@ -74,10 +74,12 @@ later phase · **Benign** = nuance, no real divergence · **Not-yet** = on the r
 - **Re-converge:** flip on a review queue (`status: proposed` + approve step) — cheap now that the Phase-7B
   approval/audit machinery exists; mandatory at least for regulatory sources before customer use.
 
-### D7 — Shared Neon DB with a parallel RegSentinel schema  — *Not-yet / reconciliation debt*
-- **Context:** the Neon DB already holds a fuller RegSentinel schema (probes/findings/scores/…). Our POC added
-  `run`/`attempt`/`turn` alongside it (Alembic scoped to our tables only).
-- **Re-converge:** reconcile the POC with that schema, or give the POC its own DB/schema.
+### D7 — Shared Neon DB with a parallel RegSentinel schema  — *RESOLVED (2026-06-12)*
+- **Context:** the Neon DB previously also held the RegSentinel schema (17 tables: probes/findings/scores/
+  assessments/reports/target_cards/…). Our POC ran alongside it (Alembic scoped to our tables only).
+- **Resolved:** on your call, the 17 RegSentinel tables were **dropped** (irreversible, confirmed) — the Neon
+  DB is now **AutoSentinx-only** (13 tables: run/attempt/turn/objective/…/auditevent/ingestionrecord).
+- **Residual:** the Alembic `include_name` scoping is now redundant (harmless) and can be removed later.
 
 ### D8 — Verdict panel running 2× Gemini, not 2× Gemini + Claude  — *Not-yet / quota*  (added Phase 2; updated 2026-06-11)
 - **Architecture / plan:** multi-provider judge diversity (2× Gemini + 1× Claude-via-Vertex).
