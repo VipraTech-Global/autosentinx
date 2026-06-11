@@ -9,7 +9,7 @@ import logging
 
 from .attacker import PromptLibAttacker
 from .belief import BeliefState
-from .classifier import GeminiClassifier
+from .classifier import Classifier
 from .config import get_settings
 from .llm import make_llm
 from .models import Attempt, Turn
@@ -26,11 +26,14 @@ log = logging.getLogger("autosentinx.runner")
 class Runner:
     def __init__(self) -> None:
         self.s = get_settings()
-        self.llm = make_llm()  # provider+model from env (LLM_PROVIDER / LLM_ATTACKER_MODEL)
+        self.llm = make_llm()  # attacker — provider+model from env (LLM_PROVIDER / LLM_ATTACKER_MODEL)
         self.store = SqlModelStore()
         self.attacker = PromptLibAttacker(self.llm)
-        self.classifier = GeminiClassifier(self.llm)
-        self.panel = JudgePanel()  # Phase-2 authoritative verdict
+        # classifier resolves its own (provider, model) — independently swappable (gemini/anthropic/open)
+        self.classifier = Classifier(
+            make_llm(model=self.s.llm_classifier_model, provider=self.s.llm_classifier_provider or None)
+        )
+        self.panel = JudgePanel()  # Phase-2 authoritative verdict (each judge swappable via LLM_JUDGE_MODELS)
 
     def _contact_for(self, i: int) -> int:
         """Rotate borrowers to dodge per-contact daily-attempt limits."""

@@ -53,14 +53,29 @@ later phase · **Benign** = nuance, no real divergence · **Not-yet** = on the r
   `run`/`attempt`/`turn` alongside it (Alembic scoped to our tables only).
 - **Re-converge:** reconcile the POC with that schema, or give the POC its own DB/schema.
 
-### D8 — Verdict panel running 2× Gemini, not 2× Gemini + Claude  — *Not-yet / config*  (added Phase 2)
+### D8 — Verdict panel running 2× Gemini, not 2× Gemini + Claude  — *Not-yet / quota*  (added Phase 2; updated 2026-06-11)
 - **Architecture / plan:** multi-provider judge diversity (2× Gemini + 1× Claude-via-Vertex).
-- **Reality:** the Claude-via-Vertex judge 404s (model `claude-sonnet-4@20250514` not enabled in project
-  `regsentinel-vipra-demo` / region `us-east5`) → gracefully dropped → panel runs on **2 Gemini judges**
-  (strict majority = both must agree).
-- **Why:** Claude on Vertex Model Garden isn't enabled / the model-id+region don't match in this GCP project.
-- **Re-converge:** enable the Claude model in Vertex Model Garden and set a valid `LLM_JUDGE_MODELS` entry
-  (correct model id + `ANTHROPIC_VERTEX_REGION`); the panel picks it up automatically (env-driven).
+- **Reality (updated 2026-06-11):** panel now runs **3 live Gemini judges** —
+  `gemini-2.5-pro,gemini-2.5-flash,gemini-2.5-flash-lite` — so the strict-majority (2-of-3) vote is
+  restored (validated: SC-020 → SUCCEEDED 2/3 with flash-lite dissenting; SC-008 → DEFENDED 0/3). What's
+  still missing is **cross-vendor** diversity: all three share Google's blind spots. Each judge is an
+  independent env entry in `LLM_JUDGE_MODELS` (`provider:model`), so swapping the 3rd to
+  `anthropic-vertex:claude-sonnet-4@20250514` (once quota lands) or `openai-compat:<self-hosted-open-model>`
+  needs no code — same for the in-call classifier (`LLM_CLASSIFIER_PROVIDER/MODEL`).
+- **Diagnosis (resolved the id/region):** probed project `regsentinel-vipra-demo` across regions —
+  `global` + `claude-sonnet-4@20250514` returns **429 "Quota exceeded …
+  global_online_prediction_requests_per_base_model, base model: anthropic-claude-sonnet-4"** (model IS
+  enabled), while `us-east5`/`us-central1`/`europe-west1` and the older 3.5/3.7 models return **404**
+  (not available). So the **model id + region are correct: `claude-sonnet-4@20250514` served from `global`**;
+  config now set to `ANTHROPIC_VERTEX_REGION=global`.
+- **Remaining blocker:** the project's per-base-model online-prediction **quota is 0** for
+  `anthropic-claude-sonnet-4` → every call 429s → judge dropped.
+- **Re-converge (single user action, GCP console):** in project `regsentinel-vipra-demo`, request a quota
+  increase for **"Online prediction requests per base model per minute"** (metric
+  `aiplatform.googleapis.com/online_prediction_requests_per_base_model`), base model
+  `anthropic-claude-sonnet-4`, region `global` — raise from 0 to e.g. 60/min. (Enable the model in Vertex
+  Model Garden first if the quota row isn't offered.) The panel then picks Claude up automatically (env-driven),
+  giving true 3-judge diversity with no code change.
 
 ---
 

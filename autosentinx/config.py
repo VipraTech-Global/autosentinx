@@ -28,10 +28,16 @@ class Settings(BaseSettings):
     llm_provider: str = "gemini"
     llm_attacker_model: str = "gemini-2.5-flash"
     llm_judge_model: str = "gemini-2.5-pro"
-    # Phase-2 verdict panel — comma-separated "provider:model" judges. A judge that errors at call
-    # time (e.g. Claude-via-Vertex without GCP creds) is dropped; majority is taken over the survivors.
+    # In-call classifier — its own swappable (provider, model). Blank provider → falls back to
+    # LLM_PROVIDER, then inferred from the model name. Point it at gemini / anthropic / a self-hosted
+    # open model (openai-compat) any time, independently of the attacker and the judges.
+    llm_classifier_model: str = "gemini-2.5-flash"
+    llm_classifier_provider: str = ""
+    # Phase-2 verdict panel — comma-separated "provider:model" judges, each resolved independently.
+    # A judge that errors at call time is dropped; strict majority is taken over the survivors. Swap any
+    # entry to anthropic-vertex:claude-... or openai-compat:<open-model> for cross-vendor diversity.
     llm_judge_models: str = (
-        "gemini:gemini-2.5-pro,gemini:gemini-2.5-flash,anthropic-vertex:claude-sonnet-4@20250514"
+        "gemini:gemini-2.5-pro,gemini:gemini-2.5-flash,gemini:gemini-2.5-flash-lite"
     )
     # Gemini Developer API
     gemini_api_key: str = ""
@@ -39,9 +45,13 @@ class Settings(BaseSettings):
     # Vertex (Gemini or Claude via Google Cloud)
     vertex_project_id: str = ""
     vertex_location: str = "global"            # Gemini-on-Vertex location
-    anthropic_vertex_region: str = "us-east5"  # Claude-on-Vertex region (Model Garden)
+    anthropic_vertex_region: str = "global"    # Claude-on-Vertex region (claude-sonnet-4 is served from `global`)
     # Anthropic direct API (optional)
     anthropic_api_key: str = ""
+    # Self-hosted open model behind an OpenAI-compatible API (vLLM / TGI / Ollama / LM Studio).
+    # Used by provider=openai-compat (also: openai | self-hosted | vllm | ollama).
+    openai_base_url: str = ""                  # e.g. http://localhost:8000/v1
+    openai_api_key: str = ""                   # optional for most self-hosted servers
 
     # --- run ---
     max_turns: int = 8  # Phase-1: persistent, stop on Succeed or budget
