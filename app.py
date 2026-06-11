@@ -7,6 +7,8 @@
   GET  /runs/{id}/transcript   — readable transcripts per objective
 """
 import asyncio
+import collections
+import json
 import subprocess
 import sys
 from contextlib import asynccontextmanager
@@ -102,20 +104,35 @@ async def transcript(run_id: str):
     if not d:
         raise HTTPException(status_code=404, detail="run not found")
     run = d["run"]
+    atts = [a["attempt"] for a in d["attempts"]]
+    judged = [a for a in atts if a.outcome in ("succeeded", "defended")]
+    succ = [a for a in judged if a.outcome == "succeeded"]
+    by_mode: dict = {}
+    for a in atts:
+        by_mode.setdefault(a.mode, collections.Counter())[a.outcome] += 1
     out = {
         "run_id": run_id, "status": run.status,
-        "num_attempts": run.num_attempts, "num_succeeded": run.num_succeeded,
+        "summary": {
+            "asr1": round(len(succ) / len(judged), 3) if judged else 0.0,  # succeeded / judged
+            "judged": len(judged), "succeeded": len(succ),
+            "blocked": sum(a.outcome == "blocked" for a in atts),
+            "errors": sum(a.outcome == "error" for a in atts),
+            "by_mode": {m: dict(c) for m, c in by_mode.items()},
+        },
         "attempts": [],
     }
     for a in d["attempts"]:
         att = a["attempt"]
         out["attempts"].append({
             "objective": att.objective_id, "mode": att.mode, "outcome": att.outcome,
-            "rule": att.rule, "persona": att.persona, "error": att.error,
+            "verdict_score": att.verdict_score, "rule": att.rule, "persona": att.persona,
+            "error": att.error,
+            "judge_votes": json.loads(att.judge_votes or "[]"),
+            "detector_hits": json.loads(att.detector_hits or "[]"),
             "transcript": [
                 {
                     "turn": t.idx, "phase": t.phase, "attacker": t.attacker_line,
-                    "agent": t.target_reply, "label": t.label,
+                    "agent": t.target_reply, "incall_label": t.label,
                     "aarav_clean": t.compliance_clean, "aarav_violations": t.violations,
                 }
                 for t in a["turns"]

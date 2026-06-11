@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     llm_provider: str = "gemini"
     llm_attacker_model: str = "gemini-2.5-flash"
     llm_judge_model: str = "gemini-2.5-pro"
+    # Phase-2 verdict panel — comma-separated "provider:model" judges. A judge that errors at call
+    # time (e.g. Claude-via-Vertex without GCP creds) is dropped; majority is taken over the survivors.
+    llm_judge_models: str = (
+        "gemini:gemini-2.5-pro,gemini:gemini-2.5-flash,anthropic-vertex:claude-sonnet-4@20250514"
+    )
     # Gemini Developer API
     gemini_api_key: str = ""
     google_api_key: str = ""
@@ -40,6 +45,9 @@ class Settings(BaseSettings):
 
     # --- run ---
     max_turns: int = 8  # Phase-1: persistent, stop on Succeed or budget
+    # Rotate borrowers across plays so we don't exhaust one contact's daily-attempt limit.
+    aarav_contact_start: int = 5
+    aarav_contact_count: int = 40
     # Force AARAV's settings-aware contact-window path (its default path hardcodes 10AM-7PM IST
     # and ignores config). "12:00" UTC = 17:30 IST — safely inside any window. Blank = don't send.
     aarav_force_current_time: str = "12:00"
@@ -63,6 +71,19 @@ class Settings(BaseSettings):
     @property
     def gemini_key(self) -> str:
         return self.gemini_api_key or self.google_api_key
+
+    @property
+    def judge_panel_specs(self) -> list[tuple[str, str]]:
+        """Parse LLM_JUDGE_MODELS → [(provider, model), ...]."""
+        out: list[tuple[str, str]] = []
+        for item in self.llm_judge_models.split(","):
+            item = item.strip()
+            if not item:
+                continue
+            provider, _, model = item.partition(":")
+            if model:
+                out.append((provider.strip(), model.strip()))
+        return out
 
 
 @lru_cache

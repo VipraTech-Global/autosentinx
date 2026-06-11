@@ -15,9 +15,8 @@ class ReconProfile(BaseModel):
     notes: list[str] = Field(default_factory=list)
 
     def as_notes(self) -> list[str]:
+        # note: borrower name is intentionally omitted — plays rotate contacts, each gets its own name
         n = []
-        if self.contact_name:
-            n.append(f"borrower name is {self.contact_name}")
         if self.discloses_ai is True:
             n.append("agent admits it is an AI when asked")
         if self.discloses_ai is False:
@@ -37,8 +36,10 @@ class Recon:
 
     async def profile(self) -> ReconProfile:
         d = await self.target.start_session(self.contact_id)
-        sid = d["session_id"]
+        sid = d.get("session_id")
         name = d.get("contact_name", "")
+        if not sid:  # start blocked (window/limit) — skip recon gracefully
+            return ReconProfile(contact_name=name, notes=["recon skipped: target blocked the start"])
         replies: list[str] = []
         try:
             # 1) confirm identity to get past the gate

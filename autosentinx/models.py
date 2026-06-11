@@ -35,7 +35,10 @@ class Attempt(SQLModel, table=True):
     persona: str = ""
     contact_id: int = 0
     contact_name: str = ""
-    outcome: str = "defended"  # succeeded | defended | error  (Phase-1: naive, from classifier 'Succeed')
+    outcome: str = "defended"  # SUCCEEDED/DEFENDED/UNKNOWN from the Phase-2 panel (authoritative)
+    verdict_score: float = 0.0  # mean StrongREJECT specificity across surviving judges
+    judge_votes: str = ""       # JSON list of per-judge verdicts
+    detector_hits: str = ""     # JSON list of deterministic detector hits (evidence)
     num_turns: int = 0
     error: str = ""
     created_at: datetime = Field(default_factory=_now)
