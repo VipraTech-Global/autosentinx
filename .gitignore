@@ -15,7 +15,7 @@ prompt-lib/
 objectives/
 
 # --- Run artifacts / logs ---
-runs/
+/runs/
 *.log
 
 # --- Local planning/design docs (not part of the shipped code) ---

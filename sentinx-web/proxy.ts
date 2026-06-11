@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Logs every page request to the server stdout (dev terminal / dev.log).
+const isProtected = (p: string) => p === "/new" || p.startsWith("/runs/");
+
+// Logs every page request, and gates the app pages behind a login cookie (Next 16 proxy = middleware).
 export function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
   // eslint-disable-next-line no-console
-  console.log(`[req]    ${request.method.padEnd(4)} ${request.nextUrl.pathname}`);
+  console.log(`[req]    ${request.method.padEnd(4)} ${pathname}`);
+  if (isProtected(pathname) && !request.cookies.get("sx_jwt")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    return NextResponse.redirect(url);
+  }
   return NextResponse.next();
 }
 

@@ -4,9 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, CheckCircle2, ShieldCheck, Loader2 } from "lucide-react";
 import { MinimalBar } from "@/components/minimal-bar";
-import { Button, Card, Field, Input, SectionLabel } from "@/components/ui";
+import { Button, Card, Field, Input } from "@/components/ui";
+import { startScan, approveScan } from "@/lib/api";
 
-type Phase = "form" | "checking" | "approve";
+type Phase = "form" | "checking" | "approve" | "approving";
 
 export default function RunConfigPage() {
   const router = useRouter();
@@ -16,19 +17,41 @@ export default function RunConfigPage() {
   const [token, setToken] = useState("");
   const [notes, setNotes] = useState("");
   const [phase, setPhase] = useState<Phase>("form");
+  const [runId, setRunId] = useState("");
+  const [err, setErr] = useState("");
 
-  function run(e: React.FormEvent) {
+  async function run(e: React.FormEvent) {
     e.preventDefault();
+    setErr("");
     setPhase("checking");
-    // connection check → reachable → pending_approval
-    setTimeout(() => setPhase("approve"), 1100);
+    try {
+      // create the run (pending_approval) — the engine target is the AARAV sandbox (endpoint is vision-forward)
+      const { run_id } = await startScan({ endpoint, agentName: agent });
+      setRunId(run_id);
+      setPhase("approve");
+    } catch (e2) {
+      setErr(e2 instanceof Error ? e2.message : "Could not start the run.");
+      setPhase("form");
+    }
+  }
+
+  async function approve() {
+    setErr("");
+    setPhase("approving");
+    try {
+      await approveScan(runId);
+      router.push(`/runs/${runId}/processing`);
+    } catch (e2) {
+      setErr(e2 instanceof Error ? e2.message : "Approval failed.");
+      setPhase("approve");
+    }
   }
 
   return (
     <main className="flex min-h-screen flex-col">
       <MinimalBar />
       <div className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-5 py-12">
-        {phase !== "approve" ? (
+        {phase !== "approve" && phase !== "approving" ? (
           <form onSubmit={run}>
             <h1 className="text-xl font-semibold tracking-tight text-ink">New audit</h1>
             <p className="mt-1 text-[13px] text-ink-muted">
@@ -75,8 +98,9 @@ export default function RunConfigPage() {
                 )}
               </Button>
               {phase === "checking" && (
-                <p className="text-center text-[12px] text-ink-faint">Endpoint reachable · authenticating…</p>
+                <p className="text-center text-[12px] text-ink-faint">Creating run · recording rules of engagement…</p>
               )}
+              {err && <p role="alert" className="text-center text-[12.5px] text-fail-text">{err}</p>}
             </div>
           </form>
         ) : (
@@ -98,16 +122,18 @@ export default function RunConfigPage() {
             </dl>
 
             <div className="mt-5 flex gap-2">
-              <Button
-                className="flex-1"
-                onClick={() => router.push("/runs/ER-01/processing")}
-              >
-                <ShieldCheck className="h-4 w-4" strokeWidth={1.75} /> Approve &amp; run
+              <Button className="flex-1" onClick={approve} disabled={phase === "approving"}>
+                {phase === "approving" ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} /> Approving…</>
+                ) : (
+                  <><ShieldCheck className="h-4 w-4" strokeWidth={1.75} /> Approve &amp; run</>
+                )}
               </Button>
-              <Button variant="secondary" onClick={() => setPhase("form")}>
+              <Button variant="secondary" onClick={() => setPhase("form")} disabled={phase === "approving"}>
                 Back
               </Button>
             </div>
+            {err && <p role="alert" className="mt-3 text-[12.5px] text-fail-text">{err}</p>}
             <p className="mt-3 text-[11px] text-ink-faint">
               Approving records an immutable audit-log entry (operator, scope, timestamp).
             </p>

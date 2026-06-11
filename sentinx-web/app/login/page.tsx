@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button, Card, Field, Input } from "@/components/ui";
+import { login } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,15 +13,24 @@ export default function LoginPage() {
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("Enter a valid email and a password (8+ characters).");
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.includes("@") || code.length < 3) {
+    if (!email.includes("@") || code.length < 8) {
+      setErrorMsg("Enter a valid email and a password (8+ characters).");
       setError(true);
       return;
     }
     setSubmitting(true);
-    setTimeout(() => router.push("/new"), 450);
+    try {
+      await login(email, code); // logs in, or creates the account on first use
+      router.push("/new");
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Sign-in failed.");
+      setError(true);
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -48,11 +58,11 @@ export default function LoginPage() {
                 aria-invalid={error}
               />
             </Field>
-            <Field label="Access code" htmlFor="code" hint="Demo access — provided by your Sentinx contact.">
+            <Field label="Password" htmlFor="code" hint="8+ characters. First sign-in creates your operator account.">
               <Input
                 id="code"
                 type="password"
-                placeholder="••••••"
+                placeholder="••••••••"
                 value={code}
                 onChange={(e) => {
                   setCode(e.target.value);
@@ -63,7 +73,7 @@ export default function LoginPage() {
             </Field>
             {error && (
               <p role="alert" className="text-[12.5px] text-fail-text">
-                Enter a valid email and access code.
+                {errorMsg}
               </p>
             )}
             <Button type="submit" className="w-full" disabled={submitting}>

@@ -21,6 +21,7 @@ from pydantic import BaseModel
 from autosentinx.audit import append_event, verify_chain
 from autosentinx.catalog import Catalog
 from autosentinx.config import get_settings
+from autosentinx.console import ConsoleView
 from autosentinx.coverage import build_archive
 from autosentinx.db import SessionLocal
 from autosentinx.ingestion import ingest
@@ -349,6 +350,25 @@ async def ingest_source(
 async def audit(run_id: Optional[str] = Query(None, description="scope to one run; omit = all")):
     """The hash-chained governance audit log + chain verification (Phase 7)."""
     return await verify_chain(run_id)
+
+
+@app.get("/console/runs")
+async def console_runs():
+    """Run list in the frontend (sentinx-web) view-model shape."""
+    catalog = await Catalog.load()
+    cv = ConsoleView(catalog)
+    runs = await store.list_runs()
+    return {"runs": [cv.run_summary(r) for r in runs]}
+
+
+@app.get("/console/runs/{run_id}")
+async def console_run(run_id: str):
+    """One run + observations in the frontend view-model shape (catalog-joined, D8 split, fairness grouped)."""
+    d = await store.get_run(run_id)
+    if not d:
+        raise HTTPException(status_code=404, detail="run not found")
+    catalog = await Catalog.load()
+    return ConsoleView(catalog).run_full(d["run"], d["attempts"])
 
 
 @app.get("/runs")
