@@ -25,10 +25,40 @@ class Run(SQLModel, table=True):
     """A scan campaign."""
     id: str = Field(default_factory=_uid, primary_key=True)
     target_url: str
-    status: str = "running"  # running | completed | failed
+    status: str = "running"  # pending_approval | running | completed | failed
     note: str = ""
     num_attempts: int = 0
     num_succeeded: int = 0
+    # governance (Phase 7) — approval gate + Rules of Engagement (recorded; light enforcement)
+    roe: str = ""               # JSON: {objectives|modes, budget, strategy, target}
+    approved_by: str = ""
+    approved_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=_now)
+
+
+class AuditEvent(SQLModel, table=True):
+    """Hash-chained, append-only governance audit log (Phase 7, ADR 0002).
+
+    Each entry hashes the previous one (entry_hash = sha256(prev_hash | fields)), so altering any past
+    row breaks the chain — tamper-evident. id order IS the chain order.
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    run_id: str = Field(default="", index=True)
+    event_type: str = Field(index=True)   # scan.created | scan.approved | scan.started | scan.completed | ingest.*
+    actor: str = "operator"
+    detail: str = ""                      # JSON
+    prev_hash: str = ""
+    entry_hash: str = ""
+    created_at: datetime = Field(default_factory=_now)
+
+
+class IngestionRecord(SQLModel, table=True):
+    """Provenance of an autonomously-ingested catalog objective (Phase 7)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    objective_slug: str = Field(index=True)
+    source_type: str = ""                 # regulation | research | web | file | text
+    source_ref: str = ""                  # URL / filename / "paste"
+    quote: str = ""                       # anchored verbatim provenance
     created_at: datetime = Field(default_factory=_now)
 
 

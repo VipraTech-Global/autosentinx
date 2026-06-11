@@ -55,10 +55,24 @@ later phase · **Benign** = nuance, no real divergence · **Not-yet** = on the r
 - **Why:** that's how AARAV actually authenticates external scanners.
 - **Re-converge:** none needed — "A2A is not our internal model," but the card-based connect is fine.
 
-### D6 — Governance not yet present  — *Not-yet*
-- **Architecture (P2/A12):** per-campaign human approval + RoE + immutable audit.
-- **POC:** scans run freely against our own AARAV sandbox; no approval gate.
-- **Re-converge:** add the approval/RoE/audit layer before any real customer target.
+### D6 — Governance not yet present  — *RESOLVED (Phase 7, 2026-06-12)*
+- **Architecture (P2/A12, ADR 0002):** per-campaign human approval + RoE + immutable audit.
+- **Resolved (Phase 7):** `/scan` now creates a run **`pending_approval`** that does NOT run until
+  `POST /runs/{id}/approve`; the **Rules of Engagement** (scope + params) are recorded on the run; a
+  **hash-chained, tamper-evident audit log** chains every governance event (created/approved/started/
+  completed/ingest) with a `verify_chain` routine (validated: tampering a past row → `intact=False`).
+- **Residual:** RoE is **recorded but not strictly enforced** (no hard budget/scope/rate caps — decision E),
+  and there's no multi-tenant authn/authz (single-operator). Those are the deferred tightening.
+
+### D11 — Ingestion is fully autonomous (no HITL for regulatory)  — *Accepted; tracked tension (Phase 7)*
+- **Architecture (ADR 0011 §5):** ingestion pipeline with **mandatory HITL for regulatory** sources.
+- **POC (your decision C):** the ingestion pipeline (regulation/research/web/file → extract → dedup →
+  validate → integrate) runs **fully autonomously** — LLM-extracted objectives, *including compliance ones*,
+  enter the catalog as `source=ingested` with **no human review gate**. Dedup is LLM-judge + string
+  (no pg_vector — decision D). Validated: a regulation snippet yielded 2 new objectives + 1 correct dedup.
+- **Why:** your explicit call, with the risk surfaced.
+- **Re-converge:** flip on a review queue (`status: proposed` + approve step) — cheap now that the Phase-7B
+  approval/audit machinery exists; mandatory at least for regulatory sources before customer use.
 
 ### D7 — Shared Neon DB with a parallel RegSentinel schema  — *Not-yet / reconciliation debt*
 - **Context:** the Neon DB already holds a fuller RegSentinel schema (probes/findings/scores/…). Our POC added

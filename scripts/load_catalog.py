@@ -87,9 +87,17 @@ def validate(frameworks: dict, objectives: dict) -> tuple[list[dict], list[dict]
 
 async def load(controls: list[dict], objs: list[dict]) -> None:
     async with SessionLocal() as s:
-        # idempotent: clear our catalog tables only, then reinsert
-        await s.execute(delete(ObjectiveControlMap))
-        await s.execute(delete(Objective))
+        # idempotent: clear only AUTHORED catalog rows, then reinsert — preserve ingested objectives
+        # (source=ingested) and their crosswalk so a seed reload doesn't wipe Phase-7 ingestion.
+        from sqlmodel import select as _sel
+        ingested_slugs = set((await s.execute(
+            _sel(Objective.slug).where(Objective.source == "ingested"))).scalars().all())
+        if ingested_slugs:
+            await s.execute(delete(ObjectiveControlMap).where(
+                ObjectiveControlMap.objective_slug.notin_(ingested_slugs)))
+        else:
+            await s.execute(delete(ObjectiveControlMap))
+        await s.execute(delete(Objective).where(Objective.source != "ingested"))
         await s.execute(delete(FrameworkControl))
         await s.commit()
         for c in controls:

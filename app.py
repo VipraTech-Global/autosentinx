@@ -16,12 +16,15 @@ from typing import Optional
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
 
+from autosentinx.audit import append_event, verify_chain
 from autosentinx.catalog import Catalog
 from autosentinx.config import get_settings
 from autosentinx.coverage import build_archive
+from autosentinx.db import SessionLocal
+from autosentinx.ingestion import ingest
 from autosentinx.library import Library, enumerate_runs
 from autosentinx.llm import make_llm
-from autosentinx.models import Run
+from autosentinx.models import Run, _now
 from autosentinx.runner import Runner
 from autosentinx.selection import Selector
 from autosentinx.store import SqlModelStore
@@ -60,55 +63,80 @@ async def health():
     return out
 
 
+async def _run_approved(run_id: str, roe: dict) -> None:
+    """Governance-gated dispatch: audit started → run the campaign per its RoE → audit completed."""
+    await append_event("scan.started", run_id=run_id, detail={"strategy": roe.get("strategy")})
+    runner = Runner()
+    strat = roe.get("strategy", "ucb")
+    csrt_on = roe.get("csrt", "off") in ("on", "both")
+    try:
+        if strat == "fairness":
+            await runner.run_fairness(run_id)
+        elif strat in ("ucb", "random"):
+            await runner.run_budget(run_id, roe.get("objectives"), roe.get("budget", 40), strat,
+                                    roe.get("modes"), csrt_on)
+        else:  # exhaustive
+            catalog = await Catalog.load(); library = await Library.load()
+            runspecs = enumerate_runs(
+                catalog, library, objective_slugs=roe.get("objectives"), modes=roe.get("modes"),
+                technique_slugs=roe.get("techniques"), include_draft=roe.get("include_draft", False),
+                n_per_objective=roe.get("n_per_objective"), csrt_mode=roe.get("csrt", "off"),
+            )
+            if roe.get("limit"):
+                runspecs = runspecs[: roe["limit"]]
+            await runner.run_campaign(run_id, runspecs)
+    finally:
+        d = await store.get_run(run_id)
+        r = d["run"] if d else None
+        await append_event("scan.completed", run_id=run_id,
+                           detail={"status": r.status if r else "?",
+                                   "succeeded": r.num_succeeded if r else 0,
+                                   "attempts": r.num_attempts if r else 0})
+
+
 @app.post("/scan")
 async def scan(
-    background: BackgroundTasks,
-    strategy: str = Query("ucb", description="ucb | random | exhaustive"),
-    budget: int = Query(40, description="number of attacks (ucb/random strategies)"),
-    objectives: Optional[list[str]] = Query(None, description="objective slugs, e.g. disclosure.undisclosed-ai"),
-    modes: Optional[list[str]] = Query(None, description="filter by spine mode, e.g. COERCION"),
-    techniques: Optional[list[str]] = Query(None, description="technique slugs (exhaustive only)"),
-    n_per_objective: Optional[int] = Query(None, description="cap techniques per objective (exhaustive)"),
-    csrt: str = Query("off", description="CSRT modifier: off | on | both"),
-    include_draft: bool = Query(False, description="include draft (Phase-6) objectives"),
-    limit: Optional[int] = Query(None, description="cap total runs (exhaustive)"),
+    strategy: str = Query("ucb", description="ucb | random | exhaustive | fairness"),
+    budget: int = Query(40, description="number of attacks (ucb/random)"),
+    objectives: Optional[list[str]] = Query(None),
+    modes: Optional[list[str]] = Query(None),
+    techniques: Optional[list[str]] = Query(None),
+    n_per_objective: Optional[int] = Query(None),
+    csrt: str = Query("off"),
+    include_draft: bool = Query(False),
+    limit: Optional[int] = Query(None),
 ):
-    """Launch a campaign.
-
-    strategy=ucb|random → budget-driven selection (Phase 5): round-robin objectives × selected technique.
-    strategy=exhaustive → enumerate every gated Objective × Technique × Persona [× CSRT] and run all.
-    """
+    """Request a scan. Governance (Phase 7): the run is created PENDING_APPROVAL and does NOT run until
+    POST /runs/{id}/approve. The RoE (scope + params) is recorded; an audit event is chained."""
     s = get_settings()
-    runner = Runner()
-    csrt_on = csrt in ("on", "both")
-    if strategy == "fairness":
-        run = Run(target_url=s.aarav_base_url, note="phase6 fairness audit")
-        await store.create_run(run)
-        background.add_task(runner.run_fairness, run.id)
-        return {"run_id": run.id, "strategy": "fairness", "status": "running"}
-    if strategy in ("ucb", "random"):
-        run = Run(target_url=s.aarav_base_url, note=f"phase5 {strategy} campaign (budget={budget})")
-        await store.create_run(run)
-        background.add_task(runner.run_budget, run.id, objectives, budget, strategy, modes, csrt_on)
-        return {"run_id": run.id, "strategy": strategy, "budget": budget, "status": "running"}
-
-    catalog = await Catalog.load()
-    library = await Library.load()
-    runspecs = enumerate_runs(
-        catalog, library, objective_slugs=objectives, modes=modes, technique_slugs=techniques,
-        include_draft=include_draft, n_per_objective=n_per_objective, csrt_mode=csrt,
-    )
-    if limit:
-        runspecs = runspecs[:limit]
-    if not runspecs:
-        raise HTTPException(status_code=400, detail="no objective×technique runs match the selection")
-    run = Run(target_url=s.aarav_base_url, note=f"exhaustive campaign ({len(runspecs)} runs)")
+    roe = {"strategy": strategy, "budget": budget, "objectives": objectives, "modes": modes,
+           "techniques": techniques, "n_per_objective": n_per_objective, "csrt": csrt,
+           "include_draft": include_draft, "limit": limit, "target": s.aarav_base_url}
+    run = Run(target_url=s.aarav_base_url, status="pending_approval", note=f"{strategy} scan (pending approval)",
+              roe=json.dumps(roe))
     await store.create_run(run)
-    background.add_task(runner.run_campaign, run.id, runspecs)
-    return {
-        "run_id": run.id, "strategy": "exhaustive", "num_runs": len(runspecs), "status": "running",
-        "runs": [rs.label for rs in runspecs[:50]],
-    }
+    await append_event("scan.created", run_id=run.id, detail={"strategy": strategy, "roe": roe})
+    return {"run_id": run.id, "status": "pending_approval",
+            "message": "RoE recorded. POST /runs/{id}/approve to run.", "roe": roe}
+
+
+@app.post("/runs/{run_id}/approve")
+async def approve_run(run_id: str, background: BackgroundTasks, approver: str = Query("operator")):
+    """Approve a pending scan → it runs within its recorded RoE (Phase 7 governance gate)."""
+    d = await store.get_run(run_id)
+    if not d:
+        raise HTTPException(status_code=404, detail="run not found")
+    run = d["run"]
+    if run.status != "pending_approval":
+        raise HTTPException(status_code=409, detail=f"run is {run.status}, not pending_approval")
+    roe = json.loads(run.roe or "{}")
+    async with SessionLocal() as sess:
+        r = await sess.get(Run, run_id)
+        r.status = "running"; r.approved_by = approver; r.approved_at = _now()
+        sess.add(r); await sess.commit()
+    await append_event("scan.approved", run_id=run_id, actor=approver, detail={"strategy": roe.get("strategy")})
+    background.add_task(_run_approved, run_id, roe)
+    return {"run_id": run_id, "status": "running", "approved_by": approver}
 
 
 @app.get("/catalog")
@@ -243,6 +271,26 @@ async def selection_stats():
     catalog = await Catalog.load()
     selector = await Selector.load(catalog)
     return {"stats": selector.stats_table()}
+
+
+@app.post("/ingest")
+async def ingest_source(
+    source_type: str = Query(..., description="regulation | research | web | file | text"),
+    content: str = Query(..., description="pasted text, a URL, or a file path"),
+):
+    """Autonomously ingest a source → extract → dedup → integrate into the catalog (Phase 7)."""
+    result = await ingest(source_type, content)
+    await append_event("ingest.completed", detail={
+        "source_type": source_type, "integrated": [o["slug"] for o in result["integrated"]],
+        "skipped": len(result["skipped"]),
+    })
+    return result
+
+
+@app.get("/audit")
+async def audit(run_id: Optional[str] = Query(None, description="scope to one run; omit = all")):
+    """The hash-chained governance audit log + chain verification (Phase 7)."""
+    return await verify_chain(run_id)
 
 
 @app.get("/runs")
