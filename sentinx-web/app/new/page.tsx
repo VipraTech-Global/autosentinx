@@ -1,0 +1,128 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { ChevronDown, CheckCircle2, ShieldCheck, Loader2 } from "lucide-react";
+import { MinimalBar } from "@/components/minimal-bar";
+import { Button, Card, Field, Input, SectionLabel } from "@/components/ui";
+
+type Phase = "form" | "checking" | "approve";
+
+export default function RunConfigPage() {
+  const router = useRouter();
+  const [endpoint, setEndpoint] = useState("https://vendor-api.example.com/chat");
+  const [agent, setAgent] = useState("VendorBot v2.1");
+  const [advanced, setAdvanced] = useState(false);
+  const [token, setToken] = useState("");
+  const [notes, setNotes] = useState("");
+  const [phase, setPhase] = useState<Phase>("form");
+
+  function run(e: React.FormEvent) {
+    e.preventDefault();
+    setPhase("checking");
+    // connection check → reachable → pending_approval
+    setTimeout(() => setPhase("approve"), 1100);
+  }
+
+  return (
+    <main className="flex min-h-screen flex-col">
+      <MinimalBar />
+      <div className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-5 py-12">
+        {phase !== "approve" ? (
+          <form onSubmit={run}>
+            <h1 className="text-xl font-semibold tracking-tight text-ink">New audit</h1>
+            <p className="mt-1 text-[13px] text-ink-muted">
+              Point Sentinx at a target voice agent and run one evaluation.
+            </p>
+
+            <div className="mt-6 space-y-4">
+              <Field label="Target API endpoint" htmlFor="endpoint" hint="The agent's conversational endpoint.">
+                <Input id="endpoint" value={endpoint} onChange={(e) => setEndpoint(e.target.value)} className="mono text-[13px]" required />
+              </Field>
+              <Field label="Agent name" htmlFor="agent">
+                <Input id="agent" value={agent} onChange={(e) => setAgent(e.target.value)} />
+              </Field>
+
+              <button
+                type="button"
+                onClick={() => setAdvanced((a) => !a)}
+                aria-expanded={advanced}
+                className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-muted hover:text-ink"
+              >
+                <ChevronDown className={`h-4 w-4 transition-transform ${advanced ? "rotate-180" : ""}`} strokeWidth={1.5} />
+                Advanced
+              </button>
+              {advanced && (
+                <div className="space-y-4 rounded-md border border-border bg-surface p-4">
+                  <Field label="Bearer token (optional)" htmlFor="token">
+                    <Input id="token" type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Authorization: Bearer …" className="mono text-[13px]" />
+                  </Field>
+                  <Field label="Notes (optional)" htmlFor="notes">
+                    <Input id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. post-remediation re-test" />
+                  </Field>
+                </div>
+              )}
+
+              <div className="rounded-md bg-surface-sunk px-3 py-2 text-[12px] text-ink-muted">
+                Will run <span className="text-ink">Security + Compliance</span> · multi-turn Hinglish plays · one evaluation run.
+              </div>
+
+              <Button type="submit" className="w-full" disabled={phase === "checking" || !endpoint}>
+                {phase === "checking" ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} /> Connecting…</>
+                ) : (
+                  "Run audit"
+                )}
+              </Button>
+              {phase === "checking" && (
+                <p className="text-center text-[12px] text-ink-faint">Endpoint reachable · authenticating…</p>
+              )}
+            </div>
+          </form>
+        ) : (
+          <Card className="p-6">
+            <div className="flex items-center gap-2 text-pass-text">
+              <CheckCircle2 className="h-4 w-4" strokeWidth={1.75} />
+              <span className="text-[13px] font-medium">Endpoint reachable — audit pending approval</span>
+            </div>
+            <h2 className="mt-4 text-lg font-semibold text-ink">Approve &amp; run</h2>
+            <p className="mt-1 text-[13px] text-ink-muted">
+              Sentinx requires human approval before any campaign executes (Rules of Engagement).
+            </p>
+
+            <dl className="mt-5 space-y-2 rounded-md border border-border bg-surface-sunk p-4 text-[12.5px]">
+              <Row k="Target" v={endpoint} mono />
+              <Row k="Agent" v={agent} />
+              <Row k="Scope" v="Security + Compliance · 1 eval run" />
+              <Row k="Data" v="Synthetic · sandbox target · no real PII" />
+            </dl>
+
+            <div className="mt-5 flex gap-2">
+              <Button
+                className="flex-1"
+                onClick={() => router.push("/runs/ER-01/processing")}
+              >
+                <ShieldCheck className="h-4 w-4" strokeWidth={1.75} /> Approve &amp; run
+              </Button>
+              <Button variant="secondary" onClick={() => setPhase("form")}>
+                Back
+              </Button>
+            </div>
+            <p className="mt-3 text-[11px] text-ink-faint">
+              Approving records an immutable audit-log entry (operator, scope, timestamp).
+            </p>
+          </Card>
+        )}
+      </div>
+    </main>
+  );
+}
+
+function Row({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <dt className="text-ink-muted">{k}</dt>
+      <dd className={`text-right text-ink ${mono ? "mono text-[12px]" : ""} truncate`}>{v}</dd>
+    </div>
+  );
+}
