@@ -105,8 +105,8 @@ def main() -> None:
     args = ap.parse_args()
 
     s = get_settings()
-    client = genai.Client(api_key=s.gemini_key)
-    model = s.gemini_attacker_model
+    client = genai.Client(api_key=s.gemini_key)  # build tool uses Gemini structured-output
+    model = s.llm_attacker_model
     os.makedirs(OUT_DIR, exist_ok=True)
 
     scenarios = load_scenarios(args.xlsx)

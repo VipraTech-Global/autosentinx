@@ -2,7 +2,6 @@
 import ssl
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlmodel import SQLModel
 
 from .config import get_settings
 from . import models  # noqa: F401  (register tables on import)
@@ -19,7 +18,4 @@ engine = create_async_engine(
 
 SessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
-
-async def init_db() -> None:
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
+# Schema is managed by Alembic (see alembic/). Run `alembic upgrade head` (the app also does this on startup).

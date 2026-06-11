@@ -22,14 +22,21 @@ class Settings(BaseSettings):
     aarav_card_key_id: str = ""
     target_bearer_token: str = ""
 
-    # --- Gemini (Developer API or Vertex) ---
+    # --- LLM provider + models (fully swappable via env) ---
+    # provider: gemini (Dev API) | vertex (Gemini on Google Cloud) | anthropic-vertex (Claude on
+    # Google Cloud / Model Garden) | anthropic (Claude direct API). If blank, inferred from the model name.
+    llm_provider: str = "gemini"
+    llm_attacker_model: str = "gemini-2.5-flash"
+    llm_judge_model: str = "gemini-2.5-pro"
+    # Gemini Developer API
     gemini_api_key: str = ""
     google_api_key: str = ""
-    gemini_attacker_model: str = "gemini-2.5-flash"
-    gemini_judge_model: str = "gemini-2.5-pro"
-    google_genai_use_vertexai: bool = False
+    # Vertex (Gemini or Claude via Google Cloud)
     vertex_project_id: str = ""
-    vertex_location: str = "global"
+    vertex_location: str = "global"            # Gemini-on-Vertex location
+    anthropic_vertex_region: str = "us-east5"  # Claude-on-Vertex region (Model Garden)
+    # Anthropic direct API (optional)
+    anthropic_api_key: str = ""
 
     # --- run ---
     max_turns: int = 8  # Phase-1: persistent, stop on Succeed or budget

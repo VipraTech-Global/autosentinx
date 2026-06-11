@@ -6,14 +6,16 @@
   GET  /runs/{id}              — campaign + attempts + turns (raw)
   GET  /runs/{id}/transcript   — readable transcripts per objective
 """
+import asyncio
+import subprocess
+import sys
 from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
 
 from autosentinx.config import get_settings
-from autosentinx.db import init_db
-from autosentinx.llm import GeminiLLM
+from autosentinx.llm import make_llm
 from autosentinx.models import Run
 from autosentinx.playlib import load_plays
 from autosentinx.runner import Runner
@@ -23,7 +25,10 @@ from autosentinx.target import AaravTarget
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_db()
+    # schema is managed by Alembic — apply any pending migrations on startup
+    await asyncio.to_thread(
+        subprocess.run, [sys.executable, "-m", "alembic", "upgrade", "head"], check=False
+    )
     yield
 
 
@@ -35,9 +40,9 @@ store = SqlModelStore()
 async def health():
     out: dict = {"ok": True, "checks": {}}
     try:
-        out["checks"]["gemini"] = bool(await GeminiLLM().generate("Reply with the single word: ok"))
+        out["checks"]["llm"] = bool(await make_llm().generate("Reply with the single word: ok"))
     except Exception as e:  # noqa: BLE001
-        out["checks"]["gemini"] = f"ERROR: {e}"; out["ok"] = False
+        out["checks"]["llm"] = f"ERROR: {e}"; out["ok"] = False
     try:
         t = AaravTarget(); await t.discover_and_verify(); await t.aclose()
         out["checks"]["aarav_card_verified"] = True

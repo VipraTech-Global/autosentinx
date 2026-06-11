@@ -20,9 +20,10 @@ agent) on synthetic data.
 ## Stack
 
 - **Python 3.11+**, **FastAPI** (API), **httpx** (target client)
-- **Google Gemini** via `google-genai` (attacker + classifier; Vertex-capable) behind an `LLM` seam
-- **SQLModel** on **Neon Postgres** (runs / attempts / turns)
-- **uv** for packaging
+- **Swappable LLM** behind an `LLM` seam — `LLM_PROVIDER` selects **Gemini** (Dev API), **Gemini on Vertex**,
+  **Claude on Vertex** (Google Cloud / Model Garden), or **Claude direct**; change provider/model via env only.
+- **SQLModel** on **Neon Postgres**, schema managed by **Alembic** (async; auto-`upgrade head` on startup)
+- **uv** for packaging (`requirements.txt` also provided for pip)
 
 ## Layout
 
@@ -49,9 +50,13 @@ tests/                     # smoke tests
 ## Setup
 
 ```bash
-uv sync
-cp .env.example .env          # fill in DB, target card secret/kid, and a Gemini key
+uv sync                       # creates .venv + installs deps  (or: pip install -r requirements.txt)
+cp .env.example .env          # fill in DB, target card secret/kid, LLM provider + key
+uv run alembic upgrade head   # apply DB migrations (the app also does this on startup)
 ```
+
+To switch the LLM, edit `.env` only — e.g. Claude on Google Cloud:
+`LLM_PROVIDER=anthropic-vertex` + `LLM_ATTACKER_MODEL=claude-sonnet-4@20250514` + `VERTEX_PROJECT_ID` / `ANTHROPIC_VERTEX_REGION`.
 
 Stand up a target (the AARAV sandbox agent), then generate the prompt-lib and run:
 

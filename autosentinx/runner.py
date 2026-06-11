@@ -11,7 +11,7 @@ from .attacker import PromptLibAttacker
 from .belief import BeliefState
 from .classifier import GeminiClassifier
 from .config import get_settings
-from .llm import GeminiLLM
+from .llm import make_llm
 from .models import Attempt, Turn
 from .playlib import Play
 from .recon import Recon, ReconProfile
@@ -24,7 +24,7 @@ log = logging.getLogger("autosentinx.runner")
 class Runner:
     def __init__(self) -> None:
         self.s = get_settings()
-        self.llm = GeminiLLM()
+        self.llm = make_llm()  # provider+model from env (LLM_PROVIDER / LLM_ATTACKER_MODEL)
         self.store = SqlModelStore()
         self.attacker = PromptLibAttacker(self.llm)
         self.classifier = GeminiClassifier(self.llm)
