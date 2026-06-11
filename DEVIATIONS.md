@@ -24,18 +24,24 @@ later phase · **Benign** = nuance, no real divergence · **Not-yet** = on the r
 - **Re-converge:** promote detectors to hard gates in the combiner (one change) when we want regulator-grade.
 - *Keep this most visible — it inverts the architecture's core oracle principle.*
 
-### D3 — Objective ↔ Technique fused 1:1 in the prompt-lib  — *Simplification*
+### D3 — Objective ↔ Technique fused 1:1 in the prompt-lib  — *Objective side RESOLVED (Phase 3, 2026-06-11)*
 - **Architecture (ADR 0014):** three *decoupled* registries (Objective × Technique → Oracle), many-to-many.
-- **POC:** each xlsx scenario = its own objective **and** its play (1:1, fused in one YAML).
-- **Why:** fastest path for Phase 1; pre-shaped toward the catalog.
-- **Re-converge:** split objectives → the catalog (Phase 3) and techniques → the A3 library (Phase 4).
+- **POC (was):** each xlsx scenario = its own objective **and** its play (1:1, fused in one YAML).
+- **Resolved (Phase 3 hard cut):** objectives split into a first-class **catalog** (22 objectives, spine-v1.0,
+  full crosswalk); the play is now pure technique `{id, objective_slug, persona, phases}` and references the
+  objective by slug; the runner resolves slug → `ObjectiveSpec` and feeds the attacker/classifier/judge from
+  it. Single source of truth for the "what". Integrity test guards every play→slug.
+- **Residual:** the **technique** registry is still the prompt-lib placeholder (the `technique` table is a
+  stub) — the A3 library fills it in **Phase 4**. So the objective↔technique *link* is implicit (one slug per
+  play) until Phase 4 makes it M:N.
 
-### D4 — Prompt-lib built FROM the xlsx  — *Approved tension*
+### D4 — Prompt-lib built FROM the xlsx  — *Objective lane re-converged (Phase 3); technique lane pending*
 - **Architecture (ADR 0011):** objectives authored from scratch; the xlsx is reference-only.
-- **POC:** plays/objectives Gemini-generated from the xlsx scenarios.
-- **Why:** you asked to build the prompt-lib from the xlsx for the POC.
-- **Re-converge:** when the from-scratch catalog + ingestion subsystem land (Phase 3/7), treat the xlsx as one
-  reference source among many, not the seed of record.
+- **POC (was):** plays/objectives Gemini-generated from the xlsx scenarios.
+- **Re-converged (Phase 3):** the **objective catalog is authored from scratch** (committed `catalog-seed/`,
+  no xlsx) — the xlsx is no longer the seed-of-record for objectives.
+- **Residual:** the **plays** (technique: persona + phases) are still xlsx-derived; they now merely *point at*
+  catalog objectives. The technique lane re-converges when the A3 library + ingestion land (Phase 4/7).
 
 ### D5 — A2A "dropped" but the connection is A2A-flavored  — *Benign*
 - **Architecture (ADR 0013):** A2A dropped; use AARAV's native REST.

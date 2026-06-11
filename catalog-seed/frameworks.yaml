@@ -1,0 +1,44 @@
+# Framework controls referenced by the objective crosswalk (ADR 0011 §2).
+# Generic / authored — no customer data. Compliance (RBI/DPDP/TRAI) + security (OWASP/MITRE/NIST).
+# control_id is our stable handle; citation is the human reference. Verify exact clause text before
+# any customer-facing report (provenance is indicative for the POC).
+
+controls:
+  # --- RBI: Fair Practices Code / FREE-AI / recovery norms (compliance) ---
+  - {framework: RBI-FPC, control_id: FPC-RECOVERY, title: "Recovery agents — no harassment, intimidation or coercion", citation: "RBI Fair Practices Code; RBI Recovery Agents guidelines 2008/2022", version: "2022"}
+  - {framework: RBI-FPC, control_id: FPC-HOURS, title: "Contact only between 08:00 and 19:00", citation: "RBI Recovery Agents guidelines — calling hours", version: "2022"}
+  - {framework: RBI-FPC, control_id: FPC-THIRD-PARTY, title: "No disclosure of debt to third parties / no public shaming", citation: "RBI Fair Practices Code — privacy of borrower", version: "2022"}
+  - {framework: RBI-FPC, control_id: FPC-IDENTIFY, title: "Agent must identify self, lender and purpose of call", citation: "RBI Fair Practices Code — transparency", version: "2022"}
+  - {framework: RBI-FPC, control_id: FPC-NO-MISREP, title: "No false, misleading or intimidating representation of consequences", citation: "RBI Fair Practices Code; recovery conduct", version: "2022"}
+  - {framework: RBI-FPC, control_id: FREE-AI-DISCLOSURE, title: "Disclose use of AI to the customer", citation: "RBI FREE-AI committee — responsible AI / disclosure sutra", version: "2024"}
+  - {framework: RBI-FPC, control_id: FREE-AI-FAIRNESS, title: "Fair, non-discriminatory, people-first AI treatment", citation: "RBI FREE-AI — fairness & people-first sutras", version: "2024"}
+
+  # --- DPDP Act 2023 (compliance) ---
+  - {framework: DPDP, control_id: DPDP-6, title: "Consent must be free, specific, informed; withdrawable", citation: "DPDP Act 2023 s.6 — consent", version: "2023"}
+  - {framework: DPDP, control_id: DPDP-8, title: "Purpose limitation, accuracy and reasonable security safeguards", citation: "DPDP Act 2023 s.8 — data fiduciary obligations", version: "2023"}
+
+  # --- TRAI (compliance) ---
+  - {framework: TRAI, control_id: TRAI-OPTOUT, title: "Honour customer preferences / DND for commercial communication", citation: "TRAI TCCCPR 2018", version: "2018"}
+  - {framework: TRAI, control_id: TRAI-AI-DISCLOSURE, title: "Disclosure of AI / pre-recorded nature of calls", citation: "TRAI consultation on AI-generated calls", version: "2024"}
+
+  # --- OWASP Top 10 for LLM Apps 2025 (security) ---
+  - {framework: OWASP-LLM, control_id: LLM01, title: "Prompt Injection", citation: "OWASP Top 10 for LLM Apps 2025 — LLM01", version: "2025"}
+  - {framework: OWASP-LLM, control_id: LLM02, title: "Sensitive Information Disclosure", citation: "OWASP Top 10 for LLM Apps 2025 — LLM02", version: "2025"}
+  - {framework: OWASP-LLM, control_id: LLM06, title: "Excessive Agency", citation: "OWASP Top 10 for LLM Apps 2025 — LLM06", version: "2025"}
+  - {framework: OWASP-LLM, control_id: LLM07, title: "System Prompt Leakage", citation: "OWASP Top 10 for LLM Apps 2025 — LLM07", version: "2025"}
+  - {framework: OWASP-LLM, control_id: LLM09, title: "Misinformation", citation: "OWASP Top 10 for LLM Apps 2025 — LLM09", version: "2025"}
+  - {framework: OWASP-LLM, control_id: LLM10, title: "Unbounded Consumption", citation: "OWASP Top 10 for LLM Apps 2025 — LLM10", version: "2025"}
+
+  # --- OWASP Agentic threats (security) ---
+  - {framework: OWASP-AGENTIC, control_id: AGENTIC-MEMORY, title: "Memory poisoning", citation: "OWASP Agentic AI — Threats & Mitigations", version: "2025"}
+  - {framework: OWASP-AGENTIC, control_id: AGENTIC-GOAL, title: "Goal / intent manipulation", citation: "OWASP Agentic AI — Threats & Mitigations", version: "2025"}
+  - {framework: OWASP-AGENTIC, control_id: AGENTIC-PRIVILEGE, title: "Privilege compromise / unauthorized action", citation: "OWASP Agentic AI — Threats & Mitigations", version: "2025"}
+
+  # --- MITRE ATLAS (security) ---
+  - {framework: MITRE-ATLAS, control_id: AML.T0051, title: "LLM Prompt Injection", citation: "MITRE ATLAS technique AML.T0051", version: "2024"}
+  - {framework: MITRE-ATLAS, control_id: AML.T0054, title: "LLM Jailbreak", citation: "MITRE ATLAS technique AML.T0054", version: "2024"}
+
+  # --- NIST AI RMF (security/governance) ---
+  - {framework: NIST-AI-RMF, control_id: MEASURE-2.5, title: "AI system is valid and reliable", citation: "NIST AI RMF 1.0 — MEASURE 2.5", version: "1.0"}
+  - {framework: NIST-AI-RMF, control_id: MEASURE-2.7, title: "AI system security and resilience", citation: "NIST AI RMF 1.0 — MEASURE 2.7", version: "1.0"}
+  - {framework: NIST-AI-RMF, control_id: MEASURE-2.11, title: "Fairness and bias are evaluated", citation: "NIST AI RMF 1.0 — MEASURE 2.11", version: "1.0"}

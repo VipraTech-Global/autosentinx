@@ -3,6 +3,12 @@
 For each COERCION / DATA BREACH / IMPERSONATION scenario, Gemini converts the
 scenario (rule + trigger-context) into a PLAGUE-shaped play, written to prompt-lib/<id>.yaml.
 
+NOTE (Phase 3 hard cut): this generator still emits PRE-catalog plays (inline objective_goal/
+success_signal). Since the runtime Play shape is now {id, objective_slug, persona, phases}, any
+freshly generated play MUST be re-pointed at a catalog objective via
+`scripts/backfill_play_objectives.py` before it will load. This generator is superseded by the
+A3 library engine in Phase 4; treat it as reference only.
+
 Usage:
   uv run python scripts/build_prompt_lib.py                  # all 28
   uv run python scripts/build_prompt_lib.py --ids SC-008 SC-009 SC-020   # subset

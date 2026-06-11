@@ -16,6 +16,7 @@ from typing import Optional
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
 
+from autosentinx.catalog import Catalog
 from autosentinx.config import get_settings
 from autosentinx.llm import make_llm
 from autosentinx.models import Run
@@ -66,9 +67,11 @@ async def scan(
 ):
     s = get_settings()
     plays = load_plays("prompt-lib")
-    if modes:
+    if modes:  # plays no longer carry mode — resolve it via the catalog (objective_slug → mode)
+        cat = await Catalog.load()
         want = {m.upper() for m in modes}
-        plays = [p for p in plays if p.mode.upper() in want]
+        plays = [p for p in plays
+                 if (sp := cat.get(p.objective_slug)) and sp.mode.upper() in want]
     if ids:
         want_ids = set(ids)
         plays = [p for p in plays if p.id in want_ids]
@@ -83,6 +86,88 @@ async def scan(
     # dispatch seam — BackgroundTask now; swap to arq+Redis at deploy
     background.add_task(runner.run_campaign, run.id, plays, s.aarav_default_contact_id)
     return {"run_id": run.id, "num_plays": len(plays), "plays": [p.id for p in plays], "status": "running"}
+
+
+@app.get("/catalog")
+async def catalog(
+    family: Optional[str] = Query(None),
+    mode: Optional[str] = Query(None),
+    pillar: Optional[str] = Query(None),
+    framework: Optional[str] = Query(None),
+):
+    """List objectives, optionally filtered by family / mode / pillar / framework."""
+    cat = await Catalog.load()
+    out = cat.all()
+    if family:
+        out = [o for o in out if o.family == family]
+    if mode:
+        out = [o for o in out if o.mode.upper() == mode.upper()]
+    if pillar:
+        out = [o for o in out if o.primary_pillar == pillar.lower()]
+    if framework:
+        out = [o for o in out if any(e.framework == framework for e in o.crosswalk)]
+    return {
+        "count": len(out), "spine": "spine-v1.0",
+        "objectives": [
+            {
+                "slug": o.slug, "title": o.title, "mode": o.mode, "family": o.family,
+                "pillar": o.primary_pillar, "severity": o.severity, "status": o.status,
+                "gradeable": o.gradeable,
+                "frameworks": sorted({e.framework for e in o.crosswalk}),
+            }
+            for o in out
+        ],
+    }
+
+
+@app.get("/catalog/coverage")
+async def catalog_coverage():
+    """Which objectives/modes have >=1 play, and which are gradeable today vs draft (Phase-6 oracle)."""
+    cat = await Catalog.load()
+    plays = load_plays("prompt-lib")
+    play_slugs = collections.Counter(p.objective_slug for p in plays)
+    by_mode: dict = {}
+    objectives = []
+    for o in cat.all():
+        n = play_slugs.get(o.slug, 0)
+        objectives.append({
+            "slug": o.slug, "mode": o.mode, "status": o.status, "gradeable": o.gradeable,
+            "num_plays": n,
+        })
+        m = by_mode.setdefault(o.mode, {"objectives": 0, "with_plays": 0, "plays": 0, "draft": 0})
+        m["objectives"] += 1
+        m["with_plays"] += 1 if n else 0
+        m["plays"] += n
+        m["draft"] += 1 if o.status == "draft" else 0
+    return {
+        "spine": "spine-v1.0",
+        "totals": {
+            "objectives": len(cat), "modes": len(by_mode),
+            "objectives_with_plays": sum(1 for o in objectives if o["num_plays"]),
+            "gradeable": sum(1 for o in objectives if o["gradeable"]),
+            "draft": sum(1 for o in objectives if o["status"] == "draft"),
+            "plays_mapped": sum(play_slugs.values()),
+        },
+        "by_mode": by_mode,
+        "objectives": sorted(objectives, key=lambda x: (-x["num_plays"], x["mode"])),
+    }
+
+
+@app.get("/catalog/{slug}")
+async def catalog_objective(slug: str):
+    cat = await Catalog.load()
+    o = cat.get(slug)
+    if not o:
+        raise HTTPException(status_code=404, detail="objective not found")
+    plays = [p.id for p in load_plays("prompt-lib") if p.objective_slug == slug]
+    return {
+        "slug": o.slug, "title": o.title, "description": o.goal, "mode": o.mode, "family": o.family,
+        "pillar": o.primary_pillar, "severity": o.severity, "status": o.status,
+        "testability": o.testability, "gradeable": o.gradeable, "tags": o.tags,
+        "success_definition": o.success_definition, "rule": o.rule,
+        "crosswalk": [e.model_dump() for e in o.crosswalk],
+        "plays": plays,
+    }
 
 
 @app.get("/runs")
@@ -124,7 +209,8 @@ async def transcript(run_id: str):
     for a in d["attempts"]:
         att = a["attempt"]
         out["attempts"].append({
-            "objective": att.objective_id, "mode": att.mode, "outcome": att.outcome,
+            "objective": att.objective_id, "objective_slug": att.objective_slug,
+            "mode": att.mode, "outcome": att.outcome,
             "verdict_score": att.verdict_score, "rule": att.rule, "persona": att.persona,
             "error": att.error,
             "judge_votes": json.loads(att.judge_votes or "[]"),

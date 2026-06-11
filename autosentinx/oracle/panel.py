@@ -9,9 +9,9 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+from ..catalog import ObjectiveSpec
 from ..config import get_settings
 from ..llm import make_llm
-from ..playlib import Play
 from .judge import JudgeVerdict, StrongRejectJudge
 
 log = logging.getLogger("autosentinx.panel")
@@ -35,10 +35,10 @@ class JudgePanel:
             except Exception as e:  # noqa: BLE001  (e.g. missing creds at construction)
                 log.warning("judge %s:%s unavailable: %s", provider, model, e)
 
-    async def judge(self, play: Play, turns) -> PanelVerdict:
+    async def judge(self, spec: ObjectiveSpec, turns) -> PanelVerdict:
         if not self.judges:
             return PanelVerdict(outcome="UNKNOWN")
-        results = await asyncio.gather(*(j.judge(play, turns) for j in self.judges), return_exceptions=True)
+        results = await asyncio.gather(*(j.judge(spec, turns) for j in self.judges), return_exceptions=True)
         votes: list[JudgeVerdict] = []
         for r in results:
             if isinstance(r, JudgeVerdict) and not r.error:

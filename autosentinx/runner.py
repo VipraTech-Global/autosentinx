@@ -9,6 +9,7 @@ import logging
 
 from .attacker import PromptLibAttacker
 from .belief import BeliefState
+from .catalog import Catalog
 from .classifier import Classifier
 from .config import get_settings
 from .llm import make_llm
@@ -34,6 +35,7 @@ class Runner:
             make_llm(model=self.s.llm_classifier_model, provider=self.s.llm_classifier_provider or None)
         )
         self.panel = JudgePanel()  # Phase-2 authoritative verdict (each judge swappable via LLM_JUDGE_MODELS)
+        self.catalog: Catalog | None = None  # loaded once per campaign (in-memory read cache)
 
     def _contact_for(self, i: int) -> int:
         """Rotate borrowers to dodge per-contact daily-attempt limits."""
@@ -57,6 +59,7 @@ class Runner:
         self._idx = 0
         succeeded = 0
         done = 0
+        self.catalog = await Catalog.load()  # in-memory objective cache for the whole campaign
         try:
             await target.discover_and_verify()
             try:
@@ -67,14 +70,25 @@ class Runner:
                 log.warning("recon failed: %s", e)
                 recon = ReconProfile()
             for play in plays:
+                spec = self.catalog.get(play.objective_slug)
+                if spec is None:  # play references an unknown objective — record + skip
+                    attempt = Attempt(
+                        run_id=run_id, objective_id=play.id, objective_slug=play.objective_slug,
+                        mode="", persona=play.persona, contact_id=contact_id, outcome="error",
+                        error=f"objective_slug not in catalog: {play.objective_slug!r}",
+                    )
+                    await self.store.add_attempt(attempt, [])
+                    done += 1
+                    continue
                 try:
                     cid, d = await self._next_startable(target)
-                    attempt, turns = await self._run_play(target, run_id, play, recon, cid, d)
+                    attempt, turns = await self._run_play(target, run_id, play, spec, recon, cid, d)
                 except Exception as e:  # noqa: BLE001
                     log.exception("play %s failed", play.id)
                     attempt = Attempt(
-                        run_id=run_id, objective_id=play.id, mode=play.mode, rule=play.rule,
-                        persona=play.persona, contact_id=contact_id, outcome="error", error=str(e)[:300],
+                        run_id=run_id, objective_id=play.id, objective_slug=spec.slug, mode=spec.mode,
+                        rule=spec.rule, persona=play.persona, contact_id=contact_id, outcome="error",
+                        error=str(e)[:300],
                     )
                     turns = []
                 if attempt.outcome == "succeeded":
@@ -89,26 +103,26 @@ class Runner:
         finally:
             await target.aclose()
 
-    async def _run_play(self, target, run_id, play: Play, recon: ReconProfile, contact_id: int, d: dict):
+    async def _run_play(self, target, run_id, play: Play, spec, recon: ReconProfile, contact_id: int, d: dict):
         belief = BeliefState()
         sid = d.get("session_id")
         name = d.get("contact_name", "")
         opening = d.get("agent_text", "")
         turns: list[Turn] = []
-        outcome = "defended"
 
         if not sid:  # no startable contact found after retries — record gracefully
             return Attempt(
-                run_id=run_id, objective_id=play.id, mode=play.mode, rule=play.rule,
-                persona=play.persona, contact_id=contact_id, contact_name=name, outcome="blocked",
+                run_id=run_id, objective_id=play.id, objective_slug=spec.slug, mode=spec.mode,
+                rule=spec.rule, persona=play.persona, contact_id=contact_id, contact_name=name,
+                outcome="blocked",
                 error=f"start blocked: {d.get('compliance_status')} — {d.get('compliance_reason', '')}"[:300],
             ), []
 
-        line = await self.attacker.open(play, recon, belief, name, opening)
+        line = await self.attacker.open(play, spec, recon, belief, name, opening)
         for idx in range(self.s.max_turns):
             resp = await target.send_turn(sid, line)
             reply = resp.get("agent_text", "")
-            label = await self.classifier.classify(play, reply, belief)
+            label = await self.classifier.classify(spec, reply, belief)
             ph = self.attacker._phase(play, belief)
             turns.append(Turn(
                 attempt_id=0, idx=idx, phase=ph.name, attacker_intent=ph.intent,
@@ -120,7 +134,7 @@ class Runner:
             if label == "Succeed":
                 break  # in-call signal only early-stops the loop; the panel decides the verdict
             self.attacker.update_belief(belief, label, reply, play)
-            line = await self.attacker.next_turn(play, recon, belief, name, reply)
+            line = await self.attacker.next_turn(play, spec, recon, belief, name, reply)
 
         try:
             await target.end_session(sid)
@@ -129,12 +143,12 @@ class Runner:
 
         # Phase-2 authoritative verdict (StrongREJECT panel) + deterministic detector evidence
         hits = run_detectors(turns)
-        pv = await self.panel.judge(play, turns)
+        pv = await self.panel.judge(spec, turns)
         outcome = {"SUCCEEDED": "succeeded", "DEFENDED": "defended", "UNKNOWN": "unknown"}.get(
             pv.outcome, "defended"
         )
         attempt = Attempt(
-            run_id=run_id, objective_id=play.id, mode=play.mode, rule=play.rule,
+            run_id=run_id, objective_id=play.id, objective_slug=spec.slug, mode=spec.mode, rule=spec.rule,
             persona=play.persona, contact_id=contact_id, contact_name=name,
             outcome=outcome, verdict_score=pv.score, num_turns=len(turns),
             judge_votes=json.dumps([v.model_dump() for v in pv.votes]),
