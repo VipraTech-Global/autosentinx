@@ -103,17 +103,17 @@ later phase · **Benign** = nuance, no real divergence · **Not-yet** = on the r
   Model Garden first if the quota row isn't offered.) The panel then picks Claude up automatically (env-driven),
   giving true 3-judge diversity with no code change.
 
-### D9 — Classifier early-stop can truncate multi-turn techniques  — *Known limitation (Phase 4)*
-- **Behaviour:** the in-call fuzzy classifier early-stops the loop on a "Succeed" label. It sometimes
-  false-positives on a benign turn 0 (e.g. AARAV merely naming itself), ending the call at 1 turn — before a
-  multi-turn technique (actor-attack, crescendo) can develop. The 3-judge panel then correctly DEFENDS (no
-  real violation), so verdicts stay sound, but the *technique* never got to run. Observed: actor-attack
-  defended at 1 turn on `disclosure.undisclosed-ai` while direct-probe/crescendo/authority-pressure succeeded.
-- **Architecture:** ADR 0009 uses the fuzzy classifier to *drive the behaviour-tree branch*, not to hard-stop;
-  Unknown→restart, Refusal→reroute. Our early-stop on Succeed is a Phase-1 simplification.
-- **Re-converge:** make the classifier signal *advance/branch* rather than terminate (or require the in-call
-  Succeed to be corroborated before stopping); have multi-turn techniques front-load less and not abort on a
-  premature signal. Candidate for Phase 5 (selection treats truncated runs as low-reward) / attacker tuning.
+### D9 — Classifier early-stop could truncate multi-turn techniques  — *RESOLVED (Phase 6, 2026-06-12)*
+- **Behaviour (was):** the in-call classifier early-stopped the loop on a "Succeed" label, sometimes
+  false-positiving on a benign turn 0 and ending the call at 1 turn — before a multi-turn technique
+  (actor-attack, crescendo) could develop. Verdicts stayed sound (the panel correctly DEFENDED), but the
+  *technique never ran*, which unfairly zeroed it in the bandit (surfaced by the Phase-5 results).
+- **Fix (Phase 6):** the early-stop now fires only once the technique has reached its **final phase**
+  (`belief.phase_idx >= len(phase_plan)-1`), so a premature turn-0 signal can't cut a multi-turn technique
+  short. Verified: actor-attack / plague-escalation now develop and SUCCEED on `disclosure.undisclosed-ai`
+  (were defended-at-1-turn before).
+- **Residual:** the in-call classifier still *terminates* rather than *branches* (ADR 0009's Unknown→restart /
+  Refusal→reroute behaviour-tree is not fully implemented) — a deeper attacker-engine refinement for later.
 
 ### D10 — Library-health: coverage closed, lifecycle deferred  — *Partial (Phase 5)*
 - **Architecture (ADR 0012):** H1 contextual Discounted-UCB selection · H2 MAP-Elites/QD coverage · H3
