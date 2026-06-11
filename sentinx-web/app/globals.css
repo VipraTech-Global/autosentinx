@@ -1,0 +1,175 @@
+@import "tailwindcss";
+
+/* next-themes uses a .dark class on <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ============================================================
+   SENTINX TOKENS — light (default) per DESIGN.md §3.1
+   ============================================================ */
+:root {
+  --bg: #f7f9fb;            /* Light Slate */
+  --surface: #ffffff;       /* Pure White */
+  --surface-sunk: #eef2f6;  /* evidence/code wells */
+  --border: #dce3ec;
+  --ink: #0f1722;
+  --ink-muted: #586273;
+  --ink-faint: #8a94a3;     /* NON-TEXT decoration only */
+
+  --brand: #1d5bd6;         /* Azure Cobalt */
+  --brand-strong: #1648a8;
+  --brand-soft: #dbeafe;    /* Light Cobalt */
+  --on-brand: #ffffff;
+
+  --metric: #818cf8;        /* Metric Indigo — non-severity data viz */
+  --metric-soft: #eef2ff;
+
+  --fail: #ef4444;   --fail-text: #c5302a;   /* FAIL / Critical */
+  --warn: #d97706;   --warn-text: #b45309;   /* RISK (amber) */
+  --pass: #10b981;   --pass-text: #047857;   --pass-soft: #34d399;
+
+  --sev-critical: #ef4444; --sev-critical-text: #c5302a;
+  --sev-high: #ea580c;     --sev-high-text: #c2410c;
+  --sev-medium: #d97706;   --sev-medium-text: #b45309;
+  --sev-low: #64748b;      --sev-low-text: #475569;
+
+  --shadow-elev: 0 1px 2px rgba(15, 23, 34, .06), 0 4px 12px rgba(15, 23, 34, .05);
+  --ring: var(--brand);
+}
+
+/* ============================================================
+   DARK — first-class "threat-intelligence console" toggle
+   semantic colours re-tinted lighter for AA on #141A23
+   ============================================================ */
+.dark {
+  --bg: #0b0e14;
+  --surface: #141a23;
+  --surface-sunk: #0e131b;
+  --border: #232c3a;
+  --ink: #e6ebf1;
+  --ink-muted: #9aa6b6;
+  --ink-faint: #5c6675;
+
+  --brand: #5e9bff;
+  --brand-strong: #3d7df0;
+  --brand-soft: rgba(93, 155, 255, .14);
+  --on-brand: #08111f;
+
+  --metric: #a5b4fc;
+  --metric-soft: rgba(129, 140, 248, .16);
+
+  --fail: #f87171;   --fail-text: #f87171;
+  --warn: #fbbf24;   --warn-text: #fbbf24;
+  --pass: #34d399;   --pass-text: #34d399;   --pass-soft: #1f7a55;
+
+  --sev-critical: #f87171; --sev-critical-text: #f87171;
+  --sev-high: #fb923c;     --sev-high-text: #fb923c;
+  --sev-medium: #fbbf24;   --sev-medium-text: #fbbf24;
+  --sev-low: #94a3b8;      --sev-low-text: #94a3b8;
+
+  --shadow-elev: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 18px rgba(0, 0, 0, .35);
+}
+
+/* ============================================================
+   Tailwind theme mapping (utilities: bg-*, text-*, border-*)
+   ============================================================ */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-sunk: var(--surface-sunk);
+  --color-border: var(--border);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-on-brand: var(--on-brand);
+
+  --color-metric: var(--metric);
+  --color-metric-soft: var(--metric-soft);
+
+  --color-fail: var(--fail);
+  --color-fail-text: var(--fail-text);
+  --color-warn: var(--warn);
+  --color-warn-text: var(--warn-text);
+  --color-pass: var(--pass);
+  --color-pass-text: var(--pass-text);
+  --color-pass-soft: var(--pass-soft);
+
+  --color-sev-critical: var(--sev-critical);
+  --color-sev-critical-text: var(--sev-critical-text);
+  --color-sev-high: var(--sev-high);
+  --color-sev-high-text: var(--sev-high-text);
+  --color-sev-medium: var(--sev-medium);
+  --color-sev-medium-text: var(--sev-medium-text);
+  --color-sev-low: var(--sev-low);
+  --color-sev-low-text: var(--sev-low-text);
+
+  --font-sans: var(--font-geist-sans), var(--font-deva), ui-sans-serif, sans-serif;
+  --font-mono: var(--font-geist-mono), var(--font-deva), ui-monospace, monospace;
+
+  /* sharp / terminal-precise geometry (D-Q16) */
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 8px;
+}
+
+/* ============================================================
+   Base
+   ============================================================ */
+@layer base {
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .mono { font-family: var(--font-mono); }
+  :lang(hi), .deva { font-family: var(--font-deva), var(--font-geist-sans), sans-serif; }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+  ::selection { background: var(--brand-soft); color: var(--ink); }
+}
+
+/* The single orchestrated motion moment — findings reveal */
+@keyframes reveal {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.reveal { animation: reveal .28s ease-out both; }
+
+/* Report always renders light (PDF / print parity, D-Q5) */
+.force-light {
+  color-scheme: light;
+  --bg: #f7f9fb; --surface: #ffffff; --surface-sunk: #eef2f6; --border: #dce3ec;
+  --ink: #0f1722; --ink-muted: #586273; --ink-faint: #8a94a3;
+  --brand: #1d5bd6; --brand-strong: #1648a8; --brand-soft: #dbeafe; --on-brand: #ffffff;
+  --metric: #818cf8; --metric-soft: #eef2ff;
+  --fail: #ef4444; --fail-text: #c5302a; --warn: #d97706; --warn-text: #b45309;
+  --pass: #10b981; --pass-text: #047857; --pass-soft: #34d399;
+  --sev-critical: #ef4444; --sev-critical-text: #c5302a;
+  --sev-high: #ea580c; --sev-high-text: #c2410c;
+  --sev-medium: #d97706; --sev-medium-text: #b45309;
+  --sev-low: #64748b; --sev-low-text: #475569;
+  background: var(--bg); color: var(--ink);
+}
+
+@media print {
+  .no-print { display: none !important; }
+  .force-light { background: #fff; }
+  @page { margin: 16mm; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
