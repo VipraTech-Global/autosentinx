@@ -3,7 +3,8 @@
 **Autonomous black-box red-teaming for Indian NBFC Hindi/Hinglish voice AI agents** — continuously testing a
 debt-collection (or similar) voice agent for both **security** weaknesses and **regulatory-compliance**
 failures (RBI Fair Practices / FREE-AI · DPDP · TRAI), with full transcript evidence and a defensible
-coverage report. This repository is the application code (API; no frontend yet).
+coverage report. This repository is a **monorepo**: the **API/engine** (FastAPI, repo root) **and** the **Next.js
+console** in `sentinx-web/` (the Sentinx operator UI).
 
 > **Proprietary & confidential.** © 2026 VipraTech Global. All rights reserved. See `LICENSE`.
 
@@ -185,6 +186,22 @@ at the Cloud-Run level but gated by this app-level user auth. Explore + authoriz
 | GET  | `/selection/stats` | the Discounted-UCB bandit value table |
 | POST | `/ingest?source_type=&content=` | autonomously ingest a source into the catalog |
 | GET  | `/audit?run_id=` | the hash-chained audit log + chain verification |
+
+## Frontend (Sentinx console)
+
+The operator-facing UI lives in **`sentinx-web/`** (Next.js + React, TypeScript). It talks to this backend only
+through a same-origin **BFF proxy** (`sentinx-web/app/api/[...path]/route.ts`) that forwards `/api/*` to
+`BACKEND_BASE` (default `http://127.0.0.1:8080`) and attaches the JWT from an httpOnly `sx_jwt` cookie — the
+browser never holds the token.
+
+```bash
+cd sentinx-web
+cp .env.example .env.local        # sets BACKEND_BASE → the FastAPI backend
+npm install && npm run dev        # http://localhost:3000
+```
+
+See **`design documentation/RUNBOOK.md`** for the full both-halves bring-up (env, DB seed, auth bootstrap, and a
+step-by-step smoke test) and **`design documentation/api-contract.md`** for the FE↔BE contract.
 
 ## Tests
 
