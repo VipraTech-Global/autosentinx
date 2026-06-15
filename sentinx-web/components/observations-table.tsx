@@ -28,10 +28,20 @@ export function ObservationsTable({ run }: { run: Run }) {
       .filter((o) => (mod === "all" ? true : o.module === mod))
       .filter((o) => (out === "all" ? true : o.outcome === out))
       .filter((o) => (sev === "all" ? true : o.severity === sev))
-      .sort((a, b) => severityRank(b.severity) - severityRank(a.severity));
+      .sort((a, b) => {
+        const s = severityRank(b.severity) - severityRank(a.severity);
+        if (s !== 0) return s;
+        return b.verdictScore - a.verdictScore;
+      });
   }, [run.observations, mod, out, sev]);
 
   const filtered = mod !== "all" || out !== "all" || sev !== "all";
+
+  function clearFilters() {
+    setMod("all");
+    setOut("all");
+    setSev("all");
+  }
 
   return (
     <div>
@@ -44,13 +54,24 @@ export function ObservationsTable({ run }: { run: Run }) {
         <Select label="Module" value={mod} onChange={(v) => setMod(v as ModuleFilter)} options={[["all", "All modules"], ["security", "Security"], ["compliance", "Compliance"]]} />
         <Select label="Outcome" value={out} onChange={(v) => setOut(v as OutcomeFilter)} options={[["all", "All outcomes"], ["FAIL", "FAIL"], ["RISK", "RISK"], ["PASS", "PASS"]]} />
         <Select label="Severity" value={sev} onChange={(v) => setSev(v as SevFilter)} options={[["all", "All severities"], ["critical", "Critical"], ["high", "High"], ["medium", "Medium"], ["low", "Low"]]} />
-        <span className="ml-auto text-[12px] text-ink-faint tnum">{rows.length} shown</span>
+        {filtered && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="text-[12px] text-ink-muted hover:text-brand underline-offset-2 hover:underline"
+          >
+            Clear
+          </button>
+        )}
+        <span className="ml-auto text-[12px] text-ink-muted tnum">
+          {rows.length} observation{rows.length === 1 ? "" : "s"}
+        </span>
       </div>
 
       <div className="overflow-hidden rounded-md border border-border">
         <table className="w-full border-collapse text-left">
           <thead>
-            <tr className="bg-surface-sunk text-[11px] uppercase tracking-wide text-ink-faint">
+            <tr className="bg-surface-sunk text-[11px] uppercase tracking-wide text-ink-muted">
               <Th>ID</Th>
               <Th className="min-w-[16rem]">Scenario</Th>
               <Th>Module</Th>
@@ -65,9 +86,14 @@ export function ObservationsTable({ run }: { run: Run }) {
               <tr
                 key={o.id}
                 tabIndex={0}
+                role="button"
+                aria-label={`Open finding ${o.id}`}
                 onClick={() => router.push(`/runs/${run.id}/o/${o.id}`)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") router.push(`/runs/${run.id}/o/${o.id}`);
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    router.push(`/runs/${run.id}/o/${o.id}`);
+                  }
                 }}
                 className="cursor-pointer border-t border-border bg-surface hover:bg-surface-sunk focus-visible:bg-surface-sunk"
               >
@@ -99,7 +125,7 @@ export function ObservationsTable({ run }: { run: Run }) {
       </div>
 
       <div className="mt-3 flex items-center justify-between">
-        <p className="text-[12px] text-ink-faint">
+        <p className="text-[12px] text-ink-muted">
           {filtered ? "Filtered view." : `${run.observations.length} findings across ${attacks(run)} attacks.`}
         </p>
         <a
@@ -121,7 +147,7 @@ function attacks(run: Run) {
 }
 
 function Th({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <th className={cn("px-3 py-2 font-semibold", className)}>{children}</th>;
+  return <th scope="col" className={cn("px-3 py-2 font-semibold", className)}>{children}</th>;
 }
 function Td({ children, className }: { children: React.ReactNode; className?: string }) {
   return <td className={cn("px-3 py-2.5 align-middle", className)}>{children}</td>;

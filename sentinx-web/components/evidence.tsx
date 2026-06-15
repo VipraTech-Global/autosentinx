@@ -1,12 +1,13 @@
 import { cn } from "@/lib/cn";
-import type { EvidenceTurn, JudgeVote, DetectorHit, CrosswalkEdge, FairnessEvidence } from "@/lib/types";
+import type { EvidenceTurn, JudgeVote, DetectorHit, CrosswalkEdge, FairnessEvidence, Outcome } from "@/lib/types";
 import { ShieldAlert, ShieldCheck, Scale, Crosshair } from "lucide-react";
+import { RISK_BAND } from "@/lib/outcome";
 import { SectionLabel } from "./ui";
 
 export function ConfidentialityLine({ className }: { className?: string }) {
   return (
     <p className={cn("text-[12px] text-ink-muted leading-relaxed", className)}>
-      Evidence from a controlled AutoSentinx red-team run against a sandbox target on{" "}
+      Evidence from a controlled Sentinx red-team run against a sandbox target on{" "}
       <span className="text-ink">synthetic</span> data — no real borrower or PII. Probes are
       tool-generated; responses are the target agent&apos;s own output.
     </p>
@@ -22,13 +23,13 @@ export function TranscriptTurn({ turn }: { turn: EvidenceTurn }) {
         <span
           className={cn(
             "inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide",
-            isProbe ? "text-ink-faint" : "text-brand",
+            isProbe ? "text-ink-muted" : "text-brand",
           )}
         >
           {isProbe ? <Crosshair className="h-3 w-3" strokeWidth={1.5} /> : <RadarDot />}
           {isProbe ? "Probe" : "Target"}
         </span>
-        <span className="mono mt-0.5 block text-[10.5px] text-ink-faint tnum">{turn.ts}</span>
+        <span className="mono mt-0.5 block text-[10.5px] text-ink-muted tnum">{turn.ts}</span>
       </div>
       <p
         lang={turn.lang === "hi" ? "hi" : undefined}
@@ -49,7 +50,15 @@ function RadarDot() {
 }
 
 /** The single most persuasive artifact: our verdict vs the target's self-report (M7/D7). */
-export function BypassSignal({ bypass, selfReports }: { bypass: boolean; selfReports: boolean }) {
+export function BypassSignal({
+  bypass,
+  selfReports,
+  outcome,
+}: {
+  bypass: boolean;
+  selfReports: boolean;
+  outcome: Outcome;
+}) {
   if (bypass && selfReports) {
     return (
       <div className="rounded-md border border-fail/40 bg-[color-mix(in_srgb,var(--fail)_7%,transparent)] p-3">
@@ -59,8 +68,8 @@ export function BypassSignal({ bypass, selfReports }: { bypass: boolean; selfRep
             <div className="text-[13px] font-semibold text-fail-text">Guardrail bypass</div>
             <p className="mt-0.5 text-[12.5px] text-ink-muted">
               The target&apos;s own safety filter reported this exchange{" "}
-              <span className="mono text-ink">compliance_clean = true</span> — AutoSentinx&apos;s judge
-              panel rated it <span className="font-semibold text-fail-text">FAIL</span>. The
+              <span className="mono text-ink">compliance_clean = true</span> — Sentinx panel:{" "}
+              <span className="font-semibold text-fail-text">{outcome}</span>. The
               agent&apos;s filter missed it.
             </p>
           </div>
@@ -72,9 +81,10 @@ export function BypassSignal({ bypass, selfReports }: { bypass: boolean; selfRep
   return (
     <div className="rounded-md border border-border bg-surface-sunk p-3">
       <div className="flex items-start gap-2.5">
-        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-ink-faint" strokeWidth={1.75} />
+        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted" strokeWidth={1.75} />
         <p className="text-[12.5px] text-ink-muted">
-          AutoSentinx judge verdict shown below. {selfReports ? "Target self-report matched." : "This target does not self-report a guardrail signal."}
+          Sentinx panel: <span className="font-semibold text-ink">{outcome}</span>.{" "}
+          {selfReports ? "Target self-report matched." : "This target does not self-report a guardrail signal."}
         </p>
       </div>
     </div>
@@ -106,7 +116,7 @@ export function JudgePanel({ votes }: { votes: JudgeVote[] }) {
                 >
                   {v.committed ? "● violation" : "✓ held"}
                 </span>
-                <span className="mono text-[11px] text-ink-faint tnum">spec {v.specificity.toFixed(2)}</span>
+                <span className="mono text-[11px] text-ink-muted tnum">spec {v.specificity.toFixed(2)}</span>
               </div>
               <p className="mt-0.5 text-[12px] text-ink-muted">{v.reason}</p>
             </div>
@@ -126,7 +136,7 @@ export function DetectorHits({ hits }: { hits: DetectorHit[] }) {
           <span className="inline-flex items-center rounded-sm border border-warn/40 px-1.5 py-0.5 font-medium text-warn-text">
             {h.category}
           </span>
-          <span className="mono text-ink-faint">{h.detector}</span>
+          <span className="mono text-ink-muted">{h.detector}</span>
           <span className="mono text-ink">“{h.match}”</span>
         </div>
       ))}
@@ -137,15 +147,18 @@ export function DetectorHits({ hits }: { hits: DetectorHit[] }) {
 /** 0–1 specificity meter in metric indigo, RISK band marked. */
 export function VerdictScoreMeter({ score }: { score: number }) {
   const pct = Math.round(score * 100);
+  // RISK band per RISK_BAND constant (findings.md §6 / observation-detail.md §7.2)
+  const loP = Math.round(RISK_BAND.lo * 100);
+  const bandW = Math.round((RISK_BAND.hi - RISK_BAND.lo) * 100);
   return (
     <div>
       <div className="flex items-center justify-between text-[11px] text-ink-muted">
-        <span>verdict score</span>
+        <span>verdict score · RISK band {RISK_BAND.lo.toFixed(2)}–{RISK_BAND.hi.toFixed(2)}</span>
         <span className="mono tnum text-ink">{score.toFixed(2)}</span>
       </div>
       <div className="relative mt-1 h-1.5 w-full overflow-hidden rounded-full bg-surface-sunk">
-        {/* RISK band 0.30–0.70 marker */}
-        <div className="absolute inset-y-0 left-[30%] w-[40%] bg-warn/15" aria-hidden />
+        {/* RISK band marker */}
+        <div className="absolute inset-y-0 bg-warn/15" aria-hidden style={{ left: `${loP}%`, width: `${bandW}%` }} />
         <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: pct + "%", background: "var(--metric)" }} />
       </div>
     </div>
@@ -173,13 +186,20 @@ export function RegulationCite({ edges }: { edges: CrosswalkEdge[] }) {
 }
 
 /** Fairness paired-persona comparison variant (D-Q19). */
-export function FairnessComparison({ fairness }: { fairness: FairnessEvidence }) {
+export function FairnessComparison({
+  fairness,
+  verdictScore,
+}: {
+  fairness: FairnessEvidence;
+  verdictScore: number;
+}) {
   return (
     <div className="space-y-3">
       <div className="rounded-md border border-warn/40 bg-[color-mix(in_srgb,var(--warn)_6%,transparent)] p-3">
         <div className="text-[13px] font-semibold text-warn-text">Disparate treatment</div>
         <p className="mt-0.5 text-[12.5px] text-ink-muted">{fairness.verdict}</p>
-        <p className="mono mt-1.5 text-[11px] text-ink-faint">{fairness.stat}</p>
+        <p className="mono mt-1.5 text-[11px] text-ink-muted">{fairness.stat}</p>
+        <div className="mt-2"><VerdictScoreMeter score={verdictScore} /></div>
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         {fairness.personas.map((p, i) => (

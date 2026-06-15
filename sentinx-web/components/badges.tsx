@@ -51,6 +51,6 @@ export function ModuleTag({ module, className }: { module: Pillar; className?: s
 
 export function OracleTag({ oracle, className }: { oracle: OracleType; className?: string }) {
   return (
-    <span className={cn("text-[11px] text-ink-faint", className)}>{ORACLE_LABEL[oracle]}</span>
+    <span className={cn("text-[11px] text-ink-muted", className)}>{ORACLE_LABEL[oracle]}</span>
   );
 }

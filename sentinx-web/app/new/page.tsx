@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, CheckCircle2, ShieldCheck, Loader2 } from "lucide-react";
 import { MinimalBar } from "@/components/minimal-bar";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Card, Field, Input, Textarea } from "@/components/ui";
 import { startScan, approveScan } from "@/lib/api";
 
 type Phase = "form" | "checking" | "approve" | "approving";
@@ -26,7 +26,7 @@ export default function RunConfigPage() {
     setPhase("checking");
     try {
       // create the run (pending_approval) — the engine target is the AARAV sandbox (endpoint is vision-forward)
-      const { run_id } = await startScan({ endpoint, agentName: agent });
+      const { run_id } = await startScan({ endpoint, agentName: agent, budget: 6 });
       setRunId(run_id);
       setPhase("approve");
     } catch (e2) {
@@ -55,7 +55,7 @@ export default function RunConfigPage() {
           <form onSubmit={run}>
             <h1 className="text-xl font-semibold tracking-tight text-ink">New audit</h1>
             <p className="mt-1 text-[13px] text-ink-muted">
-              Point AutoSentinx at a target voice agent and run one evaluation.
+              Point Sentinx at a target voice agent and run one evaluation.
             </p>
 
             <div className="mt-6 space-y-4">
@@ -81,13 +81,13 @@ export default function RunConfigPage() {
                     <Input id="token" type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Authorization: Bearer …" className="mono text-[13px]" />
                   </Field>
                   <Field label="Notes (optional)" htmlFor="notes">
-                    <Input id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. post-remediation re-test" />
+                    <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. post-remediation re-test" />
                   </Field>
                 </div>
               )}
 
               <div className="rounded-md bg-surface-sunk px-3 py-2 text-[12px] text-ink-muted">
-                Will run <span className="text-ink">Security + Compliance</span> · multi-turn Hinglish plays · one evaluation run.
+                Will run <span className="text-ink">Security + Compliance</span> · multi-turn Hinglish plays · 6 evaluation plays against the configured AARAV sandbox target.
               </div>
 
               <Button type="submit" className="w-full" disabled={phase === "checking" || !endpoint}>
@@ -98,26 +98,27 @@ export default function RunConfigPage() {
                 )}
               </Button>
               {phase === "checking" && (
-                <p className="text-center text-[12px] text-ink-faint">Creating run · recording rules of engagement…</p>
+                <p className="text-center text-[12px] text-ink-muted">Creating run · recording rules of engagement…</p>
               )}
               {err && <p role="alert" className="text-center text-[12.5px] text-fail-text">{err}</p>}
             </div>
           </form>
         ) : (
           <Card className="p-6">
-            <div className="flex items-center gap-2 text-pass-text">
+            <div className="flex items-center gap-2 text-ink-muted">
               <CheckCircle2 className="h-4 w-4" strokeWidth={1.75} />
-              <span className="text-[13px] font-medium">Endpoint reachable — audit pending approval</span>
+              <span className="text-[13px] font-medium">Run created — awaiting approval</span>
             </div>
             <h2 className="mt-4 text-lg font-semibold text-ink">Approve &amp; run</h2>
             <p className="mt-1 text-[13px] text-ink-muted">
-              AutoSentinx requires human approval before any campaign executes (Rules of Engagement).
+              Sentinx requires human approval before any campaign executes (Rules of Engagement).
             </p>
 
             <dl className="mt-5 space-y-2 rounded-md border border-border bg-surface-sunk p-4 text-[12.5px]">
-              <Row k="Target" v={endpoint} mono />
-              <Row k="Agent" v={agent} />
-              <Row k="Scope" v="Security + Compliance · 1 eval run" />
+              <Row k="Run ref" v={runId} mono />
+              <Row k="Target" v="AARAV sandbox (configured target for this build)" />
+              <Row k="Agent" v={agent || "AARAV — NBFC voice debt-collection agent"} />
+              <Row k="Scope" v="Security + Compliance · 6 eval plays" />
               <Row k="Data" v="Synthetic · sandbox target · no real PII" />
             </dl>
 
@@ -133,8 +134,12 @@ export default function RunConfigPage() {
                 Back
               </Button>
             </div>
-            {err && <p role="alert" className="mt-3 text-[12.5px] text-fail-text">{err}</p>}
-            <p className="mt-3 text-[11px] text-ink-faint">
+            {err && (
+              <p role="alert" aria-live="polite" className="mt-3 text-[12.5px] text-fail-text">
+                {err}
+              </p>
+            )}
+            <p className="mt-3 text-[11px] text-ink-muted">
               Approving records an immutable audit-log entry (operator, scope, timestamp).
             </p>
           </Card>
