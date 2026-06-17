@@ -7,8 +7,8 @@ import type {
   Pillar,
 } from "./types";
 
-// Single-judge RISK band (ASSUMPTIONS-LOG C2 — tune with engineering).
-export const RISK_BAND = { lo: 0.3, hi: 0.7 } as const;
+// Single-judge RISK band (D-Q19 tunable default — findings.md §6 / observation-detail.md §7.2).
+export const RISK_BAND = { lo: 0.3, hi: 0.55 } as const;
 
 /**
  * Derive the product outcome (FAIL/RISK/PASS) from the engine's mode-aware
@@ -61,7 +61,7 @@ export const SEVERITY_META: Record<
 > = {
   critical: { label: "CRITICAL", shape: "■", rank: 4, fill: "var(--sev-critical)", text: "var(--sev-critical-text)" },
   high: { label: "HIGH", shape: "▲", rank: 3, fill: "var(--sev-high)", text: "var(--sev-high-text)" },
-  medium: { label: "MEDIUM", shape: "◆", rank: 2, fill: "var(--sev-medium)", text: "var(--sev-medium-text)" },
+  medium: { label: "MEDIUM", shape: "◗", rank: 2, fill: "var(--sev-medium)", text: "var(--sev-medium-text)" },
   low: { label: "LOW", shape: "○", rank: 1, fill: "var(--sev-low)", text: "var(--sev-low-text)" },
 };
 

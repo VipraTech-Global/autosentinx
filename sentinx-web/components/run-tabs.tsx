@@ -35,7 +35,7 @@ export function RunTabs({ runId, findingsCount }: { runId: string; findingsCount
                 <span
                   className={cn(
                     "tnum rounded-sm px-1 text-[11px]",
-                    active ? "bg-white/20 text-on-brand" : "bg-surface-sunk text-ink-faint",
+                    active ? "bg-white/20 text-on-brand" : "bg-surface-sunk text-ink-muted",
                   )}
                 >
                   {t.count}

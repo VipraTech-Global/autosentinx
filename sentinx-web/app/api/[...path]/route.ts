@@ -5,8 +5,14 @@ import { cookies } from "next/headers";
 
 const BACKEND = process.env.BACKEND_BASE || "http://127.0.0.1:8080";
 
+// Paths reachable without a session (health/liveness probes).
+const PUBLIC_PATHS = new Set(["health"]);
+
 async function forward(req: NextRequest, path: string[]) {
   const token = (await cookies()).get("sx_jwt")?.value;
+  if (!token && !PUBLIC_PATHS.has(path[0])) {
+    return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
+  }
   const url = `${BACKEND}/${path.join("/")}${req.nextUrl.search}`;
   const headers: Record<string, string> = {};
   if (token) headers["authorization"] = `Bearer ${token}`;

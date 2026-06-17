@@ -5,7 +5,7 @@ import { ThemeToggle } from "./theme-toggle";
 export function MinimalBar({ showSignIn = false }: { showSignIn?: boolean }) {
   return (
     <header className="border-b border-border">
-      <div className="mx-auto flex h-13 max-w-6xl items-center px-5 py-2.5">
+      <div className="mx-auto flex h-14 max-w-6xl items-center px-5 py-2.5">
         <Link href="/" aria-label="AutoSentinx home">
           <Logo />
         </Link>
