@@ -3,9 +3,50 @@
 **Autonomous black-box red-teaming for Indian NBFC Hindi/Hinglish voice AI agents** — continuously testing a
 debt-collection (or similar) voice agent for both **security** weaknesses and **regulatory-compliance**
 failures (RBI Fair Practices / FREE-AI · DPDP · TRAI), with full transcript evidence and a defensible
-coverage report. This repository is the application code (API; no frontend yet).
+coverage report. The live console is at **https://autosentinx.com**; this repo holds the application code
+(FastAPI backend + Next.js frontend in `sentinx-web/`).
 
 > **Proprietary & confidential.** © 2026 VipraTech Global. All rights reserved. See `LICENSE`.
+
+---
+
+## 🏆 For the Google Startup AI Agent Challenge judges
+
+**The problem.** Indian NBFCs are deploying AI voice agents for debt collection. A single agent can break RBI
+Fair Practices, DPDP, or TRAI rules — threaten a borrower, keep calling after an opt-out, leak PII, or refuse
+to escalate to a human — at a scale no compliance team can manually audit.
+
+**What we built.** AutoSentinx is an autonomous red-teamer that **attacks a voice agent as a pure black box**
+— holding real multi-turn Hindi/Hinglish conversations — and grades every exchange with an independent
+**3-judge LLM panel**, mapping each failure to the **exact regulation and security control** (RBI / DPDP /
+TRAI + OWASP-LLM / MITRE-ATLAS / NIST-AI-RMF). Every finding ships with the agent's own words as evidence.
+
+**The agent under test.** To demonstrate it end-to-end, we also built **AARAV — an NBFC voice debt-collection
+agent** (Hindi/Hinglish). AutoSentinx scans AARAV live and surfaces its real failures (e.g., ignoring a
+borrower's opt-out → TRAI violation; refusing to hand off to a human → OWASP-LLM + RBI).
+
+### How to test it (≈60 seconds)
+
+1. Open **https://autosentinx.com**
+2. **Sign in** — it's login-or-signup: enter any email + a password (8+ characters). *(Or use the demo
+   account: `demo@autosentinx.com` / `sentinx2026`.)*
+3. Click **Run an audit.** The target field is **pre-filled with our AARAV agent URL** — or paste any NBFC
+   agent's URL to scan a different one — then start it.
+4. **Approve the Rules of Engagement** (every scan is human-gated by design).
+5. Watch **live findings** appear: each graded **FAIL / RISK / PASS** by the 3-judge panel, mapped to its
+   regulation + security control, with the full Hinglish transcript as proof. Toggle light/dark, top-right.
+
+> The target agent runs on serverless infra, so the first play can take a couple of minutes to warm up —
+> findings then populate live as each play completes.
+
+### Future scope
+
+Today AutoSentinx scans an agent over its **API** — and you can already point it at **any NBFC voice agent**
+by pasting its URL. Next:
+
+- **Live phone calls** — red-team agents over real telephony, exactly as borrowers reach them in production.
+- **Text / chat channel** — the same engine against WhatsApp / SMS / chat agents.
+- **Multi-agent fleet** — scan a portfolio of NBFC agents on a schedule, with trend & regression reports.
 
 ---
 
