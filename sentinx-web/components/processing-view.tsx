@@ -57,12 +57,12 @@ export function ProcessingView({ runId }: { runId: string }) {
   // Recon while no play has completed yet (recon + the first play in flight), Running plays as
   // plays land, Classifying once all plays are in but status is still running, Compiling at
   // finish. Polling self-recovers now (use-run), so Recon advances instead of getting stuck.
-  const phaseIdx = !run ? 0 : finished ? 3 : done === 0 ? 0 : done >= total ? 2 : 1;
+  const phaseIdx = !run ? 0 : finished ? 3 : done === 0 ? 0 : total > 0 && done >= total ? 2 : 1;
 
   return (
     <main className="flex min-h-screen flex-col">
       <header className="border-b border-border">
-        <div className="mx-auto flex h-13 max-w-4xl items-center px-5 py-2.5">
+        <div className="mx-auto flex h-14 max-w-4xl items-center px-5 py-2.5">
           <Logo />
           <span className="ml-3 mono text-[12px] text-ink-muted">
             {stalled ? "stalled" : finished ? "completing" : "live"} · {runId.slice(0, 8)}

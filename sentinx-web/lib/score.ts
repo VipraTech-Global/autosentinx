@@ -51,8 +51,11 @@ export function summaryCounts(run: Run): SummaryCounts {
     fail: o.filter((x) => x.outcome === "FAIL").length,
     risk: o.filter((x) => x.outcome === "RISK").length,
     pass: o.filter((x) => x.outcome === "PASS").length,
-    critical: o.filter((x) => x.severity === "critical").length,
-    high: o.filter((x) => x.severity === "high").length,
+    // critical/high count FAILING findings (FAIL|RISK) so the headline stat matches the
+    // outcome-filtered "Top critical risks" panel — counting defended PASS observations here
+    // makes the overview contradict that panel.
+    critical: o.filter((x) => x.severity === "critical" && (x.outcome === "FAIL" || x.outcome === "RISK")).length,
+    high: o.filter((x) => x.severity === "high" && (x.outcome === "FAIL" || x.outcome === "RISK")).length,
     bypass: o.filter((x) => x.bypass).length,
   };
 }

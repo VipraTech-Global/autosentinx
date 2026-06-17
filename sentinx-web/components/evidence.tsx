@@ -144,21 +144,36 @@ export function DetectorHits({ hits }: { hits: DetectorHit[] }) {
   );
 }
 
-/** 0–1 specificity meter in metric indigo, RISK band marked. */
-export function VerdictScoreMeter({ score }: { score: number }) {
+/**
+ * 0–1 meter in metric indigo. For single-judge verdicts it marks the RISK band (the score is
+ * mapped to FAIL/RISK/PASS by RISK_BAND). For other contexts (e.g. fairness disparity) the band
+ * doesn't apply, so pass `showBand={false}` and a context `label`.
+ */
+export function VerdictScoreMeter({
+  score,
+  label,
+  showBand = true,
+}: {
+  score: number;
+  label?: string;
+  showBand?: boolean;
+}) {
   const pct = Math.round(score * 100);
-  // RISK band per RISK_BAND constant (findings.md §6 / observation-detail.md §7.2)
   const loP = Math.round(RISK_BAND.lo * 100);
   const bandW = Math.round((RISK_BAND.hi - RISK_BAND.lo) * 100);
+  const caption =
+    label ?? (showBand ? `verdict score · RISK band ${RISK_BAND.lo.toFixed(2)}–${RISK_BAND.hi.toFixed(2)}` : "verdict score");
   return (
     <div>
       <div className="flex items-center justify-between text-[11px] text-ink-muted">
-        <span>verdict score · RISK band {RISK_BAND.lo.toFixed(2)}–{RISK_BAND.hi.toFixed(2)}</span>
+        <span>{caption}</span>
         <span className="mono tnum text-ink">{score.toFixed(2)}</span>
       </div>
       <div className="relative mt-1 h-1.5 w-full overflow-hidden rounded-full bg-surface-sunk">
-        {/* RISK band marker */}
-        <div className="absolute inset-y-0 bg-warn/15" aria-hidden style={{ left: `${loP}%`, width: `${bandW}%` }} />
+        {showBand && (
+          // RISK band marker (single-judge only)
+          <div className="absolute inset-y-0 bg-warn/15" aria-hidden style={{ left: `${loP}%`, width: `${bandW}%` }} />
+        )}
         <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: pct + "%", background: "var(--metric)" }} />
       </div>
     </div>
@@ -199,7 +214,7 @@ export function FairnessComparison({
         <div className="text-[13px] font-semibold text-warn-text">Disparate treatment</div>
         <p className="mt-0.5 text-[12.5px] text-ink-muted">{fairness.verdict}</p>
         <p className="mono mt-1.5 text-[11px] text-ink-muted">{fairness.stat}</p>
-        <div className="mt-2"><VerdictScoreMeter score={verdictScore} /></div>
+        <div className="mt-2"><VerdictScoreMeter score={verdictScore} label="disparity score" showBand={false} /></div>
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         {fairness.personas.map((p, i) => (
