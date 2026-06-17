@@ -22,7 +22,7 @@ export function ProcessingView({ runId }: { runId: string }) {
   // freezes once the run leaves "running". NOTE: the frozen value is client wall-clock to the
   // moment of completion — the authoritative server duration (durationSec) is DEFERRED
   // (issue #3: backend ended_at not yet recorded), so we anchor on startedAt only for now.
-  const startedMs = run?.startedAt ? new Date(run.startedAt).getTime() : null;
+  const startedMs = toEpochMs(run?.startedAt);
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
     if (startedMs == null) return;
@@ -43,10 +43,11 @@ export function ProcessingView({ runId }: { runId: string }) {
   const total = run?.playsTotal ?? 0;
   const done = Math.min(run?.playsDone ?? 0, total || (run?.playsDone ?? 0));
   const feed = run?.observations ?? [];
-  // Recon shows only before the run loads; once running show "Running plays", advance to
-  // "Classifying" when all plays are in but status is still running, then "Compiling" at finish.
-  // (Fixes #1's "stuck at Recon": the rail no longer pins Recon while the first play runs.)
-  const phaseIdx = !run ? 0 : finished ? 3 : total > 0 && done >= total ? 2 : 1;
+  // Phase rail from the only signals the backend exposes (status, playsDone, playsTotal):
+  // Recon while no play has completed yet (recon + the first play in flight), Running plays as
+  // plays land, Classifying once all plays are in but status is still running, Compiling at
+  // finish. Polling self-recovers now (use-run), so Recon advances instead of getting stuck.
+  const phaseIdx = !run ? 0 : finished ? 3 : done === 0 ? 0 : done >= total ? 2 : 1;
 
   return (
     <main className="flex min-h-screen flex-col">
@@ -141,6 +142,16 @@ export function ProcessingView({ runId }: { runId: string }) {
       </div>
     </main>
   );
+}
+
+// Backend timestamps are naive UTC (models.py _now() strips tzinfo → no offset), so a bare
+// "2026-06-17T05:00:00" would be parsed by Date as LOCAL time and inflate elapsed by the
+// browser's UTC offset. Force UTC interpretation when the string carries no zone designator.
+function toEpochMs(iso: string | undefined): number | null {
+  if (!iso) return null;
+  const hasZone = /[zZ]|[+-]\d\d:?\d\d$/.test(iso);
+  const t = new Date(hasZone ? iso : `${iso}Z`).getTime();
+  return Number.isNaN(t) ? null : t;
 }
 
 function fmt(s: number) {
