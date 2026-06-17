@@ -13,15 +13,25 @@ const PHASES = ["Recon", "Running plays", "Classifying", "Compiling findings"] a
 export function ProcessingView({ runId }: { runId: string }) {
   const router = useRouter();
   const { run, error, stalled } = useRun(runId, 1800); // poll until status leaves "running"
-  const [elapsed, setElapsed] = useState(0);
   const navigated = useRef(false);
 
-  useEffect(() => {
-    const clock = setInterval(() => setElapsed((e) => e + 1), 1000);
-    return () => clearInterval(clock);
-  }, []);
-
   const finished = run != null && run.status !== "running";
+
+  // Server-anchored elapsed: derive from the run's start (approved_at→created_at; console.py),
+  // so it survives a refresh and tracks backend truth instead of a mount-based counter, and
+  // freezes once the run leaves "running". NOTE: the frozen value is client wall-clock to the
+  // moment of completion — the authoritative server duration (durationSec) is DEFERRED
+  // (issue #3: backend ended_at not yet recorded), so we anchor on startedAt only for now.
+  const startedMs = run?.startedAt ? new Date(run.startedAt).getTime() : null;
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (startedMs == null) return;
+    const update = () => setElapsed(Math.max(0, Math.round((Date.now() - startedMs) / 1000)));
+    update();
+    if (finished) return; // freeze the clock once the run leaves "running"
+    const clock = setInterval(update, 1000);
+    return () => clearInterval(clock);
+  }, [startedMs, finished]);
   useEffect(() => {
     if (finished && !navigated.current) {
       navigated.current = true;
@@ -33,7 +43,10 @@ export function ProcessingView({ runId }: { runId: string }) {
   const total = run?.playsTotal ?? 0;
   const done = Math.min(run?.playsDone ?? 0, total || (run?.playsDone ?? 0));
   const feed = run?.observations ?? [];
-  const phaseIdx = !run ? 0 : finished ? 3 : done === 0 ? 0 : 1;
+  // Recon shows only before the run loads; once running show "Running plays", advance to
+  // "Classifying" when all plays are in but status is still running, then "Compiling" at finish.
+  // (Fixes #1's "stuck at Recon": the rail no longer pins Recon while the first play runs.)
+  const phaseIdx = !run ? 0 : finished ? 3 : total > 0 && done >= total ? 2 : 1;
 
   return (
     <main className="flex min-h-screen flex-col">
@@ -94,9 +107,9 @@ export function ProcessingView({ runId }: { runId: string }) {
           </div>
           <div className="mt-2 space-y-1.5" aria-live="polite" aria-label="Live findings feed">
             {error && <p className="text-[12.5px] text-fail-text">Could not load run: {error}</p>}
-            {stalled && !error && (
+            {stalled && !error && feed.length === 0 && (
               <p className="text-[12.5px] text-ink-muted">
-                Awaiting approval or run stalled — no progress detected. Check the run status on the runs list.
+                Still working — this is taking longer than usual. The page updates automatically as plays complete.
               </p>
             )}
             {!error && !stalled && feed.length === 0 && (
@@ -116,7 +129,7 @@ export function ProcessingView({ runId }: { runId: string }) {
 
         <p role="status" aria-live="polite" className="sr-only">
           {stalled
-            ? "Run stalled or awaiting approval."
+            ? "Still working; this is taking longer than usual."
             : finished
               ? "Run complete. Opening report."
               : `${done} of ${total || "unknown"} plays complete.`}
