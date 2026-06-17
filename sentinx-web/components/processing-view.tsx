@@ -10,6 +10,16 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 const PHASES = ["Recon", "Running plays", "Classifying", "Compiling findings"] as const;
 
+// Stage captions — keep the watcher oriented during the (legitimately slow) cold-start first
+// play: the count can sit at 0–1/N for a few minutes, then jump as plays land in bursts. Honest,
+// expectation-setting copy reads as "working", not "stuck".
+const PHASE_HINTS = [
+  "Establishing a secure session and profiling the target agent — the first step is the slowest.",
+  "Running multi-turn attacks. Plays finish in bursts, so the count may pause, then jump.",
+  "Scoring the transcripts with the judge panel…",
+  "Compiling findings…",
+] as const;
+
 export function ProcessingView({ runId }: { runId: string }) {
   const router = useRouter();
   const { run, error, stalled } = useRun(runId, 1800); // poll until status leaves "running"
@@ -22,7 +32,7 @@ export function ProcessingView({ runId }: { runId: string }) {
   // freezes once the run leaves "running". NOTE: the frozen value is client wall-clock to the
   // moment of completion — the authoritative server duration (durationSec) is DEFERRED
   // (issue #3: backend ended_at not yet recorded), so we anchor on startedAt only for now.
-  const startedMs = run?.startedAt ? new Date(run.startedAt).getTime() : null;
+  const startedMs = toEpochMs(run?.startedAt);
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
     if (startedMs == null) return;
@@ -43,10 +53,11 @@ export function ProcessingView({ runId }: { runId: string }) {
   const total = run?.playsTotal ?? 0;
   const done = Math.min(run?.playsDone ?? 0, total || (run?.playsDone ?? 0));
   const feed = run?.observations ?? [];
-  // Recon shows only before the run loads; once running show "Running plays", advance to
-  // "Classifying" when all plays are in but status is still running, then "Compiling" at finish.
-  // (Fixes #1's "stuck at Recon": the rail no longer pins Recon while the first play runs.)
-  const phaseIdx = !run ? 0 : finished ? 3 : total > 0 && done >= total ? 2 : 1;
+  // Phase rail from the only signals the backend exposes (status, playsDone, playsTotal):
+  // Recon while no play has completed yet (recon + the first play in flight), Running plays as
+  // plays land, Classifying once all plays are in but status is still running, Compiling at
+  // finish. Polling self-recovers now (use-run), so Recon advances instead of getting stuck.
+  const phaseIdx = !run ? 0 : finished ? 3 : done === 0 ? 0 : done >= total ? 2 : 1;
 
   return (
     <main className="flex min-h-screen flex-col">
@@ -100,6 +111,10 @@ export function ProcessingView({ runId }: { runId: string }) {
           })}
         </ol>
 
+        {!finished && (
+          <p className="mt-3 text-center text-[12.5px] text-ink-muted">{PHASE_HINTS[phaseIdx]}</p>
+        )}
+
         {/* live findings feed */}
         <div className="mt-6">
           <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
@@ -141,6 +156,16 @@ export function ProcessingView({ runId }: { runId: string }) {
       </div>
     </main>
   );
+}
+
+// Backend timestamps are naive UTC (models.py _now() strips tzinfo → no offset), so a bare
+// "2026-06-17T05:00:00" would be parsed by Date as LOCAL time and inflate elapsed by the
+// browser's UTC offset. Force UTC interpretation when the string carries no zone designator.
+function toEpochMs(iso: string | undefined): number | null {
+  if (!iso) return null;
+  const hasZone = /[zZ]|[+-]\d\d:?\d\d$/.test(iso);
+  const t = new Date(hasZone ? iso : `${iso}Z`).getTime();
+  return Number.isNaN(t) ? null : t;
 }
 
 function fmt(s: number) {
