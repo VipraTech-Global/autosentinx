@@ -128,12 +128,13 @@ async def _run_approved(run_id: str, roe: dict) -> None:
     runner = Runner()
     strat = roe.get("strategy", "ucb")
     csrt_on = roe.get("csrt", "off") in ("on", "both")
+    tgt = roe.get("target")  # exact target URL recorded at /scan time
     try:
         if strat == "fairness":
-            await runner.run_fairness(run_id)
+            await runner.run_fairness(run_id, target_base=tgt)
         elif strat in ("ucb", "random"):
             await runner.run_budget(run_id, roe.get("objectives"), roe.get("budget", 40), strat,
-                                    roe.get("modes"), csrt_on)
+                                    roe.get("modes"), csrt_on, target_base=tgt)
         else:  # exhaustive
             catalog = await Catalog.load(); library = await Library.load()
             runspecs = enumerate_runs(
@@ -143,7 +144,7 @@ async def _run_approved(run_id: str, roe: dict) -> None:
             )
             if roe.get("limit"):
                 runspecs = runspecs[: roe["limit"]]
-            await runner.run_campaign(run_id, runspecs)
+            await runner.run_campaign(run_id, runspecs, target_base=tgt)
     finally:
         d = await store.get_run(run_id)
         r = d["run"] if d else None
@@ -155,6 +156,7 @@ async def _run_approved(run_id: str, roe: dict) -> None:
 
 @app.post("/scan")
 async def scan(
+    target: str = Query(..., description="the target agent's API base URL to scan (required)"),
     strategy: str = Query("ucb", description="ucb | random | exhaustive | fairness"),
     budget: int = Query(40, description="number of attacks (ucb/random)"),
     objectives: Optional[list[str]] = Query(None),
@@ -166,12 +168,20 @@ async def scan(
     limit: Optional[int] = Query(None),
 ):
     """Request a scan. Governance (Phase 7): the run is created PENDING_APPROVAL and does NOT run until
-    POST /runs/{id}/approve. The RoE (scope + params) is recorded; an audit event is chained."""
-    s = get_settings()
+    POST /runs/{id}/approve. The RoE (scope + params) is recorded; an audit event is chained.
+
+    The scan runs against the exact `target` URL supplied here (any AARAV-compatible agent), so the same
+    console can red-team different NBFC agents — the target is no longer read from the environment."""
+    from urllib.parse import urlparse
+    tgt = (target or "").strip().rstrip("/")
+    parsed = urlparse(tgt)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        raise HTTPException(status_code=400,
+                            detail="target must be a valid http(s) URL, e.g. https://agent.example.com")
     roe = {"strategy": strategy, "budget": budget, "objectives": objectives, "modes": modes,
            "techniques": techniques, "n_per_objective": n_per_objective, "csrt": csrt,
-           "include_draft": include_draft, "limit": limit, "target": s.aarav_base_url}
-    run = Run(target_url=s.aarav_base_url, status="pending_approval", note=f"{strategy} scan (pending approval)",
+           "include_draft": include_draft, "limit": limit, "target": tgt}
+    run = Run(target_url=tgt, status="pending_approval", note=f"{strategy} scan (pending approval)",
               roe=json.dumps(roe))
     await store.create_run(run)
     await append_event("scan.created", run_id=run.id, detail={"strategy": strategy, "roe": roe})

@@ -11,8 +11,8 @@ type Phase = "form" | "checking" | "approve" | "approving";
 
 export default function RunConfigPage() {
   const router = useRouter();
-  const [endpoint, setEndpoint] = useState("https://vendor-api.example.com/chat");
-  const [agent, setAgent] = useState("VendorBot v2.1");
+  const [endpoint, setEndpoint] = useState("https://aarav-api-793989842362.asia-south1.run.app");
+  const [agent, setAgent] = useState("AARAV — NBFC voice debt-collection agent");
   const [advanced, setAdvanced] = useState(false);
   const [token, setToken] = useState("");
   const [notes, setNotes] = useState("");
@@ -25,7 +25,7 @@ export default function RunConfigPage() {
     setErr("");
     setPhase("checking");
     try {
-      // create the run (pending_approval) — the engine target is the AARAV sandbox (endpoint is vision-forward)
+      // create the run (pending_approval) — the scan runs against the exact endpoint entered above
       const { run_id } = await startScan({ endpoint, agentName: agent });
       setRunId(run_id);
       setPhase("approve");
@@ -59,7 +59,7 @@ export default function RunConfigPage() {
             </p>
 
             <div className="mt-6 space-y-4">
-              <Field label="Target API endpoint" htmlFor="endpoint" hint="The agent's conversational endpoint.">
+              <Field label="Target API endpoint" htmlFor="endpoint" hint="The agent's API base URL — AutoSentinx appends the voice-call path. This exact URL is what gets scanned.">
                 <Input id="endpoint" value={endpoint} onChange={(e) => setEndpoint(e.target.value)} className="mono text-[13px]" required />
               </Field>
               <Field label="Agent name" htmlFor="agent">
@@ -118,7 +118,7 @@ export default function RunConfigPage() {
               <Row k="Target" v={endpoint} mono />
               <Row k="Agent" v={agent} />
               <Row k="Scope" v="Security + Compliance · 1 eval run" />
-              <Row k="Data" v="Synthetic · sandbox target · no real PII" />
+              <Row k="Data" v="Synthetic borrower data · no real PII" />
             </dl>
 
             <div className="mt-5 flex gap-2">
