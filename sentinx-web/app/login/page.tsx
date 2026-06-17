@@ -42,7 +42,7 @@ export default function LoginPage() {
       <div className="flex flex-1 items-center justify-center px-5">
         <Card className="w-full max-w-[400px] p-7">
           <Logo className="mb-6" />
-          <h1 className="text-[15px] font-semibold text-ink">Sign in to Sentinx</h1>
+          <h1 className="text-[15px] font-semibold text-ink">Sign in to AutoSentinx</h1>
           <p className="mt-1 text-[13px] text-ink-muted">Security &amp; compliance audit console.</p>
           <form onSubmit={submit} className="mt-6 space-y-4" noValidate>
             <Field label="Work email" htmlFor="email">
