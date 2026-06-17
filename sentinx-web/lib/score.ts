@@ -45,15 +45,14 @@ export interface SummaryCounts {
 
 export function summaryCounts(run: Run): SummaryCounts {
   const o = run.observations;
-  const failing = (x: Observation) => x.outcome === "FAIL" || x.outcome === "RISK";
   return {
     findings: o.length,
     attacks: countAttacks(run),
     fail: o.filter((x) => x.outcome === "FAIL").length,
     risk: o.filter((x) => x.outcome === "RISK").length,
     pass: o.filter((x) => x.outcome === "PASS").length,
-    critical: o.filter((x) => x.severity === "critical" && failing(x)).length,
-    high: o.filter((x) => x.severity === "high" && failing(x)).length,
+    critical: o.filter((x) => x.severity === "critical").length,
+    high: o.filter((x) => x.severity === "high").length,
     bypass: o.filter((x) => x.bypass).length,
   };
 }
@@ -82,5 +81,9 @@ export function worstFinding(run: Run): Observation | undefined {
 }
 
 export function isZeroFindings(run: Run): boolean {
-  return run.observations.every((o) => o.outcome === "PASS");
+  return !run.observations.some(
+    (o) =>
+      (o.severity === "critical" || o.severity === "high") &&
+      (o.outcome === "FAIL" || o.outcome === "RISK"),
+  );
 }

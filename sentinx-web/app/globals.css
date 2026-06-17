@@ -130,7 +130,7 @@
    Base
    ============================================================ */
 @layer base {
-  html { scroll-behavior: smooth; }
+  html { scroll-behavior: smooth; scroll-padding-top: 3.5rem; }
   body {
     background: var(--bg);
     color: var(--ink);
@@ -155,6 +155,13 @@
   to { opacity: 1; transform: none; }
 }
 .reveal { animation: reveal .28s ease-out both; }
+
+/* Quiet phase-pulse — ≤1-cycle/2s dot for the active phase node (WCAG: degrades gracefully under prefers-reduced-motion via the reset below) */
+@keyframes phase-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.75); }
+}
+.phase-pulse { animation: phase-pulse 2s ease-in-out infinite; }
 
 /* ============================================================
    MARKETING LANDING — Latticly-style surface, theme-aware.

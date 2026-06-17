@@ -61,9 +61,9 @@ export default function ObservationPage() {
         <section className="mt-7">
           <SectionLabel>Verdict</SectionLabel>
           <div className="mt-2 space-y-3">
-            <BypassSignal bypass={o.bypass} selfReports />
+            <BypassSignal bypass={o.bypass} selfReports outcome={o.outcome} />
             {o.oracle === "fairness" && o.fairness ? (
-              <FairnessComparison fairness={o.fairness} />
+              <FairnessComparison fairness={o.fairness} verdictScore={o.verdictScore} />
             ) : (
               <>
                 <div className="rounded-md border border-border bg-surface p-3">
