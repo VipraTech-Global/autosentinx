@@ -10,6 +10,16 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 const PHASES = ["Recon", "Running plays", "Classifying", "Compiling findings"] as const;
 
+// Stage captions — keep the watcher oriented during the (legitimately slow) cold-start first
+// play: the count can sit at 0–1/N for a few minutes, then jump as plays land in bursts. Honest,
+// expectation-setting copy reads as "working", not "stuck".
+const PHASE_HINTS = [
+  "Establishing a secure session and profiling the target agent — the first step is the slowest.",
+  "Running multi-turn attacks. Plays finish in bursts, so the count may pause, then jump.",
+  "Scoring the transcripts with the judge panel…",
+  "Compiling findings…",
+] as const;
+
 export function ProcessingView({ runId }: { runId: string }) {
   const router = useRouter();
   const { run, error, stalled } = useRun(runId, 1800); // poll until status leaves "running"
@@ -100,6 +110,10 @@ export function ProcessingView({ runId }: { runId: string }) {
             );
           })}
         </ol>
+
+        {!finished && (
+          <p className="mt-3 text-center text-[12.5px] text-ink-muted">{PHASE_HINTS[phaseIdx]}</p>
+        )}
 
         {/* live findings feed */}
         <div className="mt-6">
