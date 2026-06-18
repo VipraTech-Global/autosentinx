@@ -38,6 +38,8 @@ export interface ScanConfig {
 
 export async function startScan(cfg: ScanConfig = {}): Promise<{ run_id: string; status: string }> {
   const q = new URLSearchParams({ strategy: "ucb", budget: String(cfg.budget ?? 6) });
+  // The scan runs against the exact URL the user enters (any AARAV-compatible agent).
+  if (cfg.endpoint) q.set("target", cfg.endpoint.trim());
   const r = await req(`/api/scan?${q.toString()}`, { method: "POST" });
   return r.json();
 }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { AlertTriangle } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button, Card, Field, Input } from "@/components/ui";
@@ -42,41 +43,53 @@ export default function LoginPage() {
         <Card className="w-full max-w-[400px] p-7">
           <Logo className="mb-6" />
           <h1 className="text-[15px] font-semibold text-ink">Sign in to AutoSentinx</h1>
-          <p className="mt-1 text-[13px] text-ink-muted">Access the red-team console.</p>
+          <p className="mt-1 text-[13px] text-ink-muted">Security &amp; compliance audit console.</p>
           <form onSubmit={submit} className="mt-6 space-y-4" noValidate>
             <Field label="Work email" htmlFor="email">
               <Input
                 id="email"
                 type="email"
-                autoComplete="email"
+                autoFocus
+                autoComplete="username"
                 placeholder="you@nbfc.in"
                 value={email}
+                readOnly={submitting}
                 onChange={(e) => {
                   setEmail(e.target.value);
                   setError(false);
                 }}
                 aria-invalid={error}
+                aria-describedby={error ? "login-error" : undefined}
               />
             </Field>
             <Field label="Password" htmlFor="code" hint="8+ characters. First sign-in creates your operator account.">
               <Input
                 id="code"
                 type="password"
+                autoComplete="current-password"
                 placeholder="••••••••"
                 value={code}
+                readOnly={submitting}
                 onChange={(e) => {
                   setCode(e.target.value);
                   setError(false);
                 }}
                 aria-invalid={error}
+                aria-describedby={error ? "login-error" : undefined}
               />
             </Field>
             {error && (
-              <p role="alert" className="text-[12.5px] text-fail-text">
+              <p
+                id="login-error"
+                role="alert"
+                aria-live="polite"
+                className="flex items-start gap-1.5 text-[12.5px] text-fail-text"
+              >
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={1.5} aria-hidden />
                 {errorMsg}
               </p>
             )}
-            <Button type="submit" className="w-full" disabled={submitting}>
+            <Button type="submit" className="w-full" disabled={submitting} aria-busy={submitting}>
               {submitting ? "Signing in…" : "Sign in"}
             </Button>
           </form>

@@ -15,7 +15,7 @@ export function ModuleScoreCard({ score }: { score: ModuleScore }) {
         <SectionLabel>{PILLAR_LABEL[pillar]}</SectionLabel>
         <span className="text-[12px] text-ink-muted">
           <span className="mono tnum text-2xl font-semibold text-ink">{withstood}</span>
-          <span className="mono tnum text-ink-faint"> / {plays}</span>
+          <span className="mono tnum text-ink-muted"> / {plays}</span>
           <span className="ml-1">withstood</span>
         </span>
       </div>
@@ -62,7 +62,7 @@ export function CriticalRiskItem({ runId, o }: { runId: string; o: Observation }
           )}
         </div>
       </div>
-      <span className="mono shrink-0 pt-0.5 text-[11px] text-ink-faint">{o.id}</span>
+      <span className="mono shrink-0 pt-0.5 text-[11px] text-ink-muted">{o.id}</span>
     </Link>
   );
 }

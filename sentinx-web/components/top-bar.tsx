@@ -7,7 +7,7 @@ import type { Run } from "@/lib/types";
 export function TopBar({ run }: { run: Run }) {
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-bg/85 backdrop-blur supports-[backdrop-filter]:bg-bg/70">
-      <div className="mx-auto flex h-13 max-w-6xl items-center gap-4 px-5 py-2.5">
+      <div className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-5 py-2.5">
         {/* wordmark routes to the run home (Findings), never Landing */}
         <Link href={`/runs/${run.id}`} aria-label="AutoSentinx — run home">
           <Logo />
