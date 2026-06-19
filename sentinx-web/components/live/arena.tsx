@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import {
   Crosshair, Shield, ShieldCheck, ShieldOff, ChevronsRight, CornerDownRight,
   GitCompare, Scale, Award, Radar, AlertTriangle, ChevronRight, Check, X,
-  CircleSlash, Loader2, RotateCcw, Repeat,
+  CircleSlash, Loader2, Repeat,
 } from "lucide-react";
 import {
   type RunView, type PlayView, type Band, type CellKind,
@@ -65,7 +65,8 @@ function Ribbon({ p, focused, onFocus }: { p: PlayView; focused: boolean; onFocu
   return (
     <button onClick={onFocus} aria-pressed={focused}
       className={`group w-full text-left rounded-md border px-3 py-2 transition-colors ${focused ? "border-brand bg-brand-soft/30" : "border-border bg-surface hover:border-brand"}`}
-      style={crit ? { boxShadow: "inset 3px 0 0 var(--sev-critical)" } : fail ? { boxShadow: "inset 3px 0 0 var(--fail)" } : p.verdict?.productOutcome === "PASS" ? { boxShadow: "inset 3px 0 0 color-mix(in srgb,var(--pass) 55%,transparent)" } : undefined}>
+      style={crit ? { boxShadow: "inset 3px 0 0 var(--sev-critical)" } : fail ? { boxShadow: "inset 3px 0 0 var(--fail)" } : undefined}>
+{/* HELD rows stay maximally ink — only the breach draws the eye (critic round-2 P2) */}
       <div className="flex items-center gap-2 flex-wrap">
         <Sev s={p.severity} />
         <span className="mono text-xs text-ink truncate max-w-[210px]">{p.id}</span>
@@ -118,7 +119,7 @@ function CombatantHeader({ p }: { p: PlayView }) {
 
 // FOCAL = the same frame-ribbon EXPANDED into intent-labelled phase groups + telegraph ghost.
 // No numbered node-stepper (D-LV15/LV-concept): the cell sequence IS the spine.
-function FocalRibbon({ p }: { p: PlayView }) {
+function FocalRibbon({ p, replayKey }: { p: PlayView; replayKey: number }) {
   const tg = telegraph(p);
   const breachPhase = breachPointPhase(p);
   const reached = new Set(p.arc.map((a) => a.phase));
@@ -142,9 +143,14 @@ function FocalRibbon({ p }: { p: PlayView }) {
               <div className="text-[12px] font-semibold text-ink leading-tight" style={{ color: isReached ? undefined : "var(--ink-faint)" }}>{ph.intent || ph.name}</div>
               <div className="mono text-[9px] text-ink-faint">{ph.name}</div>
               <div className="flex gap-1 flex-wrap min-h-[12px]">
-                {isReached ? cells.map((t) => <Cell key={t.idx} k={t.cell} lg />) : <span className="text-[9.5px] mono text-ink-faint italic">not reached</span>}
+                {isReached ? cells.map((t) => {
+                  const isPivot = isBreach && p.pivotTurn != null && t.idx === p.pivotTurn;
+                  return isPivot
+                    ? <span key={`${t.idx}-${replayKey}`} className="relative inline-flex reveal" title="breach point — the turn the classifier flagged (advisory)"><Cell k={t.cell} lg /><span className="absolute -inset-[2px] rounded-[2px]" style={{ boxShadow: "0 0 0 1.5px var(--fail)" }} /></span>
+                    : <Cell key={t.idx} k={t.cell} lg />;
+                }) : <span className="text-[9.5px] mono text-ink-faint italic">not reached</span>}
               </div>
-              {isBreach ? <div className="text-[9px] mono text-ink-muted flex items-center gap-1"><ShieldOff size={11} />breach point — classifier pivot (advisory)</div> : null}
+              {isBreach ? <div className="text-[9px] mono flex items-center gap-1" style={{ color: "var(--fail-text)" }}><ShieldOff size={11} />breach point ↑ — the panel ruled on this turn (classifier pivot, advisory)</div> : null}
             </div>
           );
         })}
@@ -290,7 +296,7 @@ export default function Arena({ run, onDrillToV3 }: { run: RunView; onDrillToV3?
             {focal ? (
               <>
                 <CombatantHeader p={focal} />
-                {(focal.status === "blocked" || focal.status === "error") ? null : <FocalRibbon p={focal} />}
+                {(focal.status === "blocked" || focal.status === "error") ? null : <FocalRibbon p={focal} replayKey={replayKey} />}
                 <VerdictBlock p={focal} run={run} replayKey={replayKey} onReplay={() => setReplayKey((k) => k + 1)} onDrill={() => onDrillToV3?.(focal.idx)} />
               </>
             ) : <div className="text-center py-10 mono text-[12px] text-ink-faint">select a play…</div>}

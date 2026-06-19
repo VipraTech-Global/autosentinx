@@ -2,7 +2,7 @@
 // V3 FORENSIC — the V2 play "fully expanded" (D-LV22). Internal-unrestricted: full chain,
 // model-named judges, detectors, recon, provenance, debug internals + Re-judge / Judge-diff.
 import { useState } from "react";
-import { ArrowUp, Crosshair, Shield, Scale, RotateCcw, GitCompareArrows, Radar, Bug } from "lucide-react";
+import { ArrowUp, Crosshair, Shield, Scale, RotateCcw, GitCompareArrows, Radar, Bug, FileText, Check, AlertTriangle } from "lucide-react";
 import { type RunView, type PlayView, judgeMeta, outcomeToken } from "@/lib/runview";
 
 function Section({ title, icon, children, note }: { title: string; icon?: React.ReactNode; children: React.ReactNode; note?: string }) {
@@ -19,13 +19,13 @@ export default function Forensic({ run, play, onRollUp }: { run: RunView; play: 
   const jm = judgeMeta(v, run.engine.judges);
   const tok = outcomeToken(v?.productOutcome);
   const [judgeDiff, setJudgeDiff] = useState(false);
-  const [rejudge, setRejudge] = useState<null | "running" | "stable" | "diverged">(null);
+  const [rejudge, setRejudge] = useState<null | "running" | "unavailable">(null);
 
   function doRejudge() {
     setRejudge("running");
-    // honest stub: a real Re-judge re-submits the sealed transcript to the panel (D-LV22).
-    // Until the engine endpoint exists we simulate determinism = "stable" (same verdict).
-    setTimeout(() => setRejudge("stable"), 900);
+    // HONEST: a real Re-judge re-submits the sealed transcript to the panel (D-LV22). The engine
+    // endpoint does not exist yet (D-LV-dep3) — so we report that, and NEVER fabricate a stability result.
+    setTimeout(() => setRejudge("unavailable"), 600);
   }
 
   return (
@@ -50,10 +50,10 @@ export default function Forensic({ run, play, onRollUp }: { run: RunView; play: 
           {v?.gateDelta?.disagree ? <div className="text-[12px] mt-1" style={{ color: "var(--fail-text)" }}>The agent believed it held. {jm.isOracle ? "The specialist judge disagrees." : "The judges disagree."}</div> : null}
           <div className="text-[11.5px] mono text-ink-muted mt-1">{jm.isOracle ? "specialist oracle" : "panel"} · committed {v?.nCommitted}/{jm.configured}{jm.errored.length ? ` · ${jm.errored.length} unavailable` : ""} · self-report {v?.agentSelfReportedClean ? "clean" : "flagged"} · score {v?.score ?? "—"}</div>
           <div className="mt-2 inline-flex gap-2 flex-wrap">
-            <button onClick={doRejudge} className="text-[11px] mono inline-flex items-center gap-1 bg-surface-sunk border border-border rounded-md px-2.5 py-1 hover:border-brand text-ink-muted"><RotateCcw size={12} />Re-judge{rejudge === "running" ? "…" : rejudge === "stable" ? " ✓ stable" : ""}</button>
+            <button onClick={doRejudge} className="text-[11px] mono inline-flex items-center gap-1 bg-surface-sunk border border-border rounded-md px-2.5 py-1 hover:border-brand text-ink-muted"><RotateCcw size={12} />Re-judge{rejudge === "running" ? "…" : ""}</button>
             <button onClick={() => setJudgeDiff(!judgeDiff)} className="text-[11px] mono inline-flex items-center gap-1 bg-surface-sunk border border-border rounded-md px-2.5 py-1 hover:border-brand text-ink-muted"><GitCompareArrows size={12} />Judge-diff</button>
           </div>
-          {rejudge === "stable" ? <div className="text-[10.5px] mono text-pass-text mt-1.5">Re-judge: the panel returned the same ruling — verdict is reproducible. <span className="text-ink-faint">(stub — wires to the engine re-judge endpoint when D-LV-dep3 lands)</span></div> : null}
+          {rejudge === "unavailable" ? <div className="text-[10.5px] mono text-warn-text mt-1.5">Re-judge endpoint not available in this build — pending the engine port (D-LV-dep3). <span className="text-ink-faint">No stability result is asserted.</span></div> : null}
         </div>
       </div>
 
@@ -63,7 +63,7 @@ export default function Forensic({ run, play, onRollUp }: { run: RunView; play: 
           <div className="grid sm:grid-cols-3 gap-2.5">
             {jm.votes.map((x, i) => (
               <div key={i} className="rounded-lg border border-border bg-surface-sunk px-3 py-2">
-                <div className="mono text-[11px] font-semibold" style={{ color: x.committed ? "var(--fail-text)" : x.error ? "var(--warn-text)" : "var(--pass-text)" }}>{x.committed ? "COMMITTED ✓" : x.error ? "⚠ unavailable" : "held ✗"}</div>
+                <div className="mono text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: x.committed ? "var(--fail-text)" : x.error ? "var(--warn-text)" : "var(--pass-text)" }}>{x.committed ? <><Check size={11} />committed</> : x.error ? <><AlertTriangle size={11} />unavailable</> : <><Shield size={11} />held</>}</div>
                 <div className="mono text-[10.5px] text-ink-muted mt-0.5">{x.model?.replace(/^gemini:/, "")}{x.specificity != null ? ` · spec ${x.specificity}` : ""}</div>
                 {x.reason ? <div className="text-[11.5px] text-ink-muted mt-1.5 deva leading-snug">{x.reason}</div> : x.error ? <div className="text-[11px] mono text-warn-text mt-1">{x.error}</div> : null}
               </div>
@@ -73,7 +73,7 @@ export default function Forensic({ run, play, onRollUp }: { run: RunView; play: 
           <div className="grid gap-2">
             {jm.votes.map((x, i) => (
               <div key={i} className="flex items-start gap-2 text-[12px]">
-                <span className="mono text-[11px] shrink-0 w-[120px]" style={{ color: x.committed ? "var(--fail-text)" : x.error ? "var(--warn-text)" : "var(--pass-text)" }}>{x.committed ? "COMMITTED ✓" : x.error ? "unavailable ⚠" : "held ✗"}</span>
+                <span className="mono text-[11px] shrink-0 w-[120px] inline-flex items-center gap-1" style={{ color: x.committed ? "var(--fail-text)" : x.error ? "var(--warn-text)" : "var(--pass-text)" }}>{x.committed ? <><Check size={11} />committed</> : x.error ? <><AlertTriangle size={11} />unavailable</> : <><Shield size={11} />held</>}</span>
                 <span className="mono text-[11px] text-ink-faint shrink-0 w-[140px] truncate">{x.model?.replace(/^gemini:/, "")}</span>
                 <span className="text-ink-muted deva">{x.reason ?? x.error ?? "—"}</span>
               </div>
@@ -83,7 +83,7 @@ export default function Forensic({ run, play, onRollUp }: { run: RunView; play: 
       </Section>
 
       {/* FULL TRANSCRIPT — every turn (internal-unrestricted full chain) */}
-      <Section title="Full transcript" icon={<span className="mono text-[12px]">⠿</span>} note={`${play.turns.length} turns · Probe (Sentinx) vs Target (AARAV) · controlled red-team, synthetic data`}>
+      <Section title="Full transcript" icon={<FileText size={13} />} note={`${play.turns.length} turns · Probe (Sentinx) vs Target (AARAV) · controlled red-team, synthetic data`}>
         <div className="grid gap-3">
           {play.turns.map((t) => {
             const pivot = play.pivotTurn != null && t.idx === play.pivotTurn;
