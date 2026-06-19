@@ -6,6 +6,9 @@ import { ChevronDown, CheckCircle2, ShieldCheck, Loader2 } from "lucide-react";
 import { MinimalBar } from "@/components/minimal-bar";
 import { Button, Card, Field, Input, Textarea } from "@/components/ui";
 import { startScan, approveScan } from "@/lib/api";
+import { IntensityDial } from "@/components/live/intensity-dial";
+import { INTENSITY } from "@/lib/intensity";
+import type { IntensityLevel } from "@/lib/runview";
 
 type Phase = "form" | "checking" | "approve" | "approving";
 
@@ -16,6 +19,7 @@ export default function RunConfigPage() {
   const [advanced, setAdvanced] = useState(false);
   const [token, setToken] = useState("");
   const [notes, setNotes] = useState("");
+  const [intensity, setIntensity] = useState<IntensityLevel>("med");
   const [phase, setPhase] = useState<Phase>("form");
   const [runId, setRunId] = useState("");
   const [err, setErr] = useState("");
@@ -26,7 +30,8 @@ export default function RunConfigPage() {
     setPhase("checking");
     try {
       // create the run (pending_approval) — the scan runs against the exact endpoint entered above
-      const { run_id } = await startScan({ endpoint, agentName: agent, budget: 6 });
+      const cfg = INTENSITY[intensity];
+      const { run_id } = await startScan({ endpoint, agentName: agent, budget: cfg.attacks === "all" ? 37 : cfg.attacks });
       setRunId(run_id);
       setPhase("approve");
     } catch (e2) {
@@ -86,8 +91,10 @@ export default function RunConfigPage() {
                 </div>
               )}
 
+              <IntensityDial value={intensity} onChange={setIntensity} />
+
               <div className="rounded-md bg-surface-sunk px-3 py-2 text-[12px] text-ink-muted">
-                Will run <span className="text-ink">Security + Compliance</span> · multi-turn Hinglish plays · 6 evaluation plays against the endpoint above.
+                Will run <span className="text-ink">Security + Compliance</span> · multi-turn Hinglish plays · <span className="text-ink tnum">{INTENSITY[intensity].attacks === "all" ? "full catalog" : `${INTENSITY[intensity].attacks} attacks`}</span> · up to {INTENSITY[intensity].turns} turns each, against the endpoint above.
               </div>
 
               <Button type="submit" className="w-full" disabled={phase === "checking" || !endpoint}>
@@ -118,7 +125,7 @@ export default function RunConfigPage() {
               <Row k="Run ref" v={runId} mono />
               <Row k="Target" v={endpoint} mono />
               <Row k="Agent" v={agent || "AARAV — NBFC voice debt-collection agent"} />
-              <Row k="Scope" v="Security + Compliance · 6 eval plays" />
+              <Row k="Scope" v={`Security + Compliance · ${INTENSITY[intensity].attacks === "all" ? "full catalog" : INTENSITY[intensity].attacks + " attacks"} · ${intensity} intensity`} />
               <Row k="Data" v="Synthetic borrower data · no real PII" />
             </dl>
 
