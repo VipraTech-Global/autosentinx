@@ -24,4 +24,22 @@
 7. **Run-Intensity dial** built on Run Config.
 - Verified: 0 console errors; V2+V3+dial render light+dark. Proof: `captures/frontend-v2/r2_*`.
 
-*(Round-2 critic score + next priorities append here when the in-flight review lands; the loop continues until is_it_there_yet.)*
+## Round 2 — 83/100 (strong)
+- **Subscores:** simple 85 · engaging 80 · differentiated 84 · useful 86 · gamestyle 78 · honesty 85 · foundation 88 · plan-fidelity 84.
+- **Resolved (round-1):** frame-ribbon focal ✓ · two-column ✓ · severity-only colour ✓ · struck-not-hollow yielded ✓ · V3 built ✓.
+- **Remaining (→ round 3):** (P1) the Overturn under-built — no pivot connector, replay was a generic fade; (P1) **V3 Re-judge fabricated a "✓ stable" positive** (honesty); (P2) V3 reintroduced dingbats (⠿, ✗-on-HELD); (P2) telegraph invisible in captures; (P2) ladder HELD edge.
+
+### Web research (round 2→3)
+- Fighting-game frame-data overlays: a "something landed here" marker without colour-coding the whole strip → the ringed pivot **cell** marker.
+- Sports VAR replay-overturn UX → the connector-to-pivot staged settle + subordinate self-report.
+- WCAG 1.4.1 / non-text-contrast on struck/hatched cells → verify struck-vs-solid ≥3:1 (spec checklist).
+
+## Round 3 — fixes applied
+1. **Overturn anchored to the pivot cell** — the breach-point is now a ringed `--fail` cell on the focal ribbon ("the panel ruled on this turn"), replayable (the replay button re-fires it). *(P1)*
+2. **V3 Re-judge honest** — reports "endpoint not available — pending D-LV-dep3", asserts **no** stability result; never a faked `--pass`. *(P1 honesty)*
+3. **V3 dingbats → lucide** (FileText transcript icon; Check/Shield/AlertTriangle on judge votes — no ✗-on-HELD). *(P2)*
+4. **Telegraph proved** — a mid-run fixture renders the ghost ("planned next move"). *(P2)*
+5. **Ladder HELD edge dropped** + dead import removed. *(P2)*
+- Verified: 0 type + 0 console errors; V2 + telegraph + V3 + dial render light+dark. Proof: `captures/frontend-v2/r3_*`.
+
+**Trajectory: 71 → 83 → (round-3 addresses all round-2 P1s).** The loop can run a round-3 score to confirm strong/world-class; the build is at a strong, reviewable checkpoint.
