@@ -133,4 +133,16 @@ Notation per `../04-uiux-plan.md §C`: `▭` region, top→bottom = priority. **
 **Remaining dependencies (not UI forks):** inherits **D6** (frozen detail fields — precondition for V3=C6), **D8** (two-row split), **D7** (bypass source) from `../03-mapping.md §3.4`; **`D-LV-dep3`** (port the Arena projection into the polled engine surface) is the V2 build precondition — see `03-mapping.md §dep`.
 
 ## G. What is explicitly NOT in this plan (guard scope creep)
-V1 **build** (deferred, `D-LV3`); any new engine capability; the full attack chain above V3; multi-run / Audit-Cycle live views; a separate "Demo Mode" data switch (replay is the same component, M22); cross-run dashboards. *(Per `03-mapping.md §cuts` + `../03-mapping.md §3.3`.)*
+V1 **build** (deferred, `D-LV3`/`D-LV23`); any new engine capability beyond `D-LV-dep3`; the full attack chain in customer surfaces; multi-run / Audit-Cycle live views; cross-run dashboards. *(Per `03-mapping.md §cuts` + `../03-mapping.md §3.3`.)*
+
+---
+
+## H. FINAL — consolidated hypothesis (AUTO-APPROVED 2026-06-19)
+
+> The design **interview** (`DECISIONS.md`, `D-LV7`–`D-LV25`) and the **2D-game-design exploration** (`v2-concept-LTO.md`) **supersede the §C V2/V3 bones above** where they differ. Those two docs + `00-foundation.md` + `../DESIGN.md` are the **authoritative inputs for the Stage-6 spec + build**. Plan **auto-approved**; proceeding to specs + implementation without a stop. Open items below are documented, not blocking.
+
+**The locked hypothesis (one paragraph):** Two families that cross-link but never merge — the **Live Duel** (V1/V2/V3) and the **Report** (C5/C6/C7) (`D-LV10`). Roll-up/down is **internal-only**; customers get **V1 only** live + the full report (`D-LV7`–`D-LV9`). **V2 Arena** is the internal Product-Admin's live window, built as the **Ladder / Telegraph / Overturn** concept: a stacked **frame-ladder** (per-turn label sequence as the spine, **not** depth — `D-LV15`), in **two pillar bands** (Security/Compliance, dual-duty = two linked ribbons — `D-LV24`), **intent-led** not phase-name (`D-LV17`), with the **telegraph** ghost of the next planned move (`D-LV16`) and the **gate-delta overturn** as the single orchestrated moment (`D-LV18`–`D-LV20`), on the DESIGN.md calm-instrument skin (light default + dark, Geist, severity-only colour, line icons — `D-LV21`). **V3 Forensic** = the V2 play fully expanded + Re-judge / Judge-diff (`D-LV22`). **V1** deferred until V2+V3 ship (`D-LV23`). A **Run-Intensity dial** (`D-LV25`, low…ultra) scales attacks/turns/breadth; runs span **both pillars** (`D-LV-dep4`).
+
+**Open items (documented, applied later — `DECISIONS.md §Open` / `§F`):** `OPEN-LV1` (customer V1↔C4), `OPEN-LV2` (V2 demo mode), `D-LV-dep3` (engine port — Stage-6), `FUTURE-LV1` (Engine Debug Console); the **canonical-ladder edits** (`§F`: P4/P5→`../02-personas.md`, M14+→`../03-mapping.md`, register the Live View, components+§5-rows→`../DESIGN.md`, the dial→C3) and the **stale `../DESIGN.md §1`** "full transcript in secured detail" line (superseded by `D-Q12`) apply during the consolidation pass.
+
+**Build seam:** the UI consumes a stable **`RunView`** contract (`BUILD-ASSUMPTIONS.md` A-LV2) fed from real captured runs + the simulator + a thin adapter today; the `D-LV-dep3` engine port implements the same contract server-side later.

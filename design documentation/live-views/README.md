@@ -43,6 +43,7 @@ Every change to this folder follows ONE rule so it never becomes chaotic to read
 | File | Stage | Status |
 |---|---|---|
 | `README.md` | — | this file: the rule + index |
+| `DECISIONS.md` | — | interview log: locked `D-LV*` decisions + `§Open` unresolved items (mirrors `../DECISIONS.md`) |
 | `00-foundation.md` | Foundation addendum to `../DESIGN.md` | governs the live-view design language |
 | `01-research.md` | Stage 1 — research delta (derived synthesis, flagged) | inputs for the new audiences + surface |
 | `02-personas.md` | Stage 2 — `P4`, `P5` + persona→tier ownership; `§2.4` supersession | who the views are for |
