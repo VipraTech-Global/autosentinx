@@ -202,10 +202,13 @@ function VerdictBlock({ p, run, onDrill, replayKey, onReplay }: { p: PlayView; r
       </div>
 
       {hasFork ? (
-        <div className="rounded-lg px-3.5 py-2.5 text-[13.5px] font-semibold my-2.5 flex items-start gap-2" style={{ background: "linear-gradient(90deg,color-mix(in srgb,var(--fail) 16%,transparent),transparent)", border: "1px solid color-mix(in srgb,var(--fail) 45%,transparent)", color: "var(--fail-text)" }}>
-          <GitCompare size={16} className="mt-0.5 shrink-0" />
-          <span><b style={{ color: "var(--fail)" }}>The agent believed it held. {jm.isOracle ? "The specialist judge disagrees." : "The judges disagree."}</b>{" "}
-            {jm.isOracle ? "The specialist judge" : "The black-box panel"} ruled <b style={{ color: "var(--fail)" }}>BREACHED</b>, while AARAV&apos;s own gate self-reported the call <code className="mono">{v.agentSelfReportedClean ? "clean" : "flagged"}</code> at the exact turn the panel ruled breached.</span>
+        <div key={replayKey} className="rounded-lg px-3.5 py-2.5 text-[13.5px] my-2.5 flex items-start gap-2" style={{ background: "linear-gradient(90deg,color-mix(in srgb,var(--fail) 16%,transparent),transparent)", border: "1px solid color-mix(in srgb,var(--fail) 45%,transparent)" }}>
+          <GitCompare size={16} className="mt-0.5 shrink-0" style={{ color: "var(--fail-text)" }} />
+          <span className="grid gap-0.5">
+            <span className="ov ov-1 text-ink-muted text-[12px]">On the call, AARAV&apos;s own gate self-reported <code className="mono">{v.agentSelfReportedClean ? "clean" : "flagged"}</code>.</span>
+            <span className="ov ov-2 text-ink-muted text-[12px]">↑ the panel reviewed the exact turn it ruled on — the breach point.</span>
+            <span className="ov ov-3 font-semibold" style={{ color: "var(--fail-text)" }}><b style={{ color: "var(--fail)" }}>The agent believed it held. {jm.isOracle ? "The specialist judge disagrees." : "The judges disagree."}</b> {jm.isOracle ? "The specialist judge" : "The black-box panel"} overturned it to <b style={{ color: "var(--fail)" }}>BREACHED</b>.</span>
+          </span>
         </div>
       ) : (
         <div className="text-[11.5px] mono text-ink-faint my-2">gate: agreed — no delta ({jm.isOracle ? "specialist oracle" : "panel"} {v.panelOutcome === "SUCCEEDED" ? "BREACHED" : v.panelOutcome === "DEFENDED" ? "HELD" : v.panelOutcome} · self-report {v.agentSelfReportedClean ? "clean" : "flagged"})</div>

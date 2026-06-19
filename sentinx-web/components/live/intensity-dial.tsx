@@ -27,7 +27,7 @@ export function IntensityDial({ value, onChange }: { value: IntensityLevel; onCh
       </div>
       <div className="mt-1.5 flex items-baseline justify-between gap-3 text-[11.5px]">
         <span className="text-ink-muted">{cfg.blurb}</span>
-        <span className="mono text-ink-faint shrink-0 tnum">{cfg.attacks === "all" ? "full catalog" : `${cfg.attacks} attacks`} · {cfg.turns} turns · ~{est.minutes}</span>
+        <span className="mono text-ink-faint shrink-0 tnum" title="rough estimate — actual depends on target latency, early-stops, and judge time">{cfg.attacks === "all" ? "full catalog" : `${cfg.attacks} attacks`} · {cfg.turns} turns · est. {est.minutes}</span>
       </div>
     </div>
   );

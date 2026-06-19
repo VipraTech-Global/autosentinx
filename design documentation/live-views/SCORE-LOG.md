@@ -42,4 +42,15 @@
 5. **Ladder HELD edge dropped** + dead import removed. *(P2)*
 - Verified: 0 type + 0 console errors; V2 + telegraph + V3 + dial render light+dark. Proof: `captures/frontend-v2/r3_*`.
 
-**Trajectory: 71 → 83 → (round-3 addresses all round-2 P1s).** The loop can run a round-3 score to confirm strong/world-class; the build is at a strong, reviewable checkpoint.
+## Round 3 — 89/100 (strong)
+- **Subscores:** simple 89 · engaging 87 · differentiated 88 · useful 90 · gamestyle 85 · **honesty 95** · foundation 93 · plan-fidelity 90.
+- **All round-2 gaps verified resolved** (pivot-cell ring + replay, honest Re-judge "no stability asserted", lucide-only V3, telegraph ghost proven mid-run, HELD edge dropped, tsc clean). No regressions.
+- **Path to 95+:** (P1) the **Security band is empty on real data** — the two-pillar/dual-duty thesis is rendered but unproven; (P2) the overturn is a static ring, not the staged 3-beat VAR settle; (P2) the dual-duty paired-twin connector isn't visible (D8-gated).
+
+## Round 4 — fixes applied
+1. **Two-pillar PROVEN on real data** — ran a both-pillar attack vs Aarav (4 Security + 8 Compliance, `D-LV-dep4`); the **Security band populates** (guardrail/prompt-leak/memory-poison/tool-hijack, withstood 3/3) with its own fraction. Proof: `captures/frontend-v2/r4_both_pillar_dark.png`. *(the P1 — the #1 lever)*
+2. **Staged 3-beat OVERTURN** (`globals.css .ov-1/2/3` + the disagree banner): on-field *clean* → review (connector to the breach point) → **overturned to BREACHED** — one ≤320ms moment, replayable, instant under reduced-motion. *(P2)*
+3. **Dual-duty connector logged as D8-gated** (`BUILD-ASSUMPTIONS A-LV6`); intensity estimate labelled "est." with basis. *(P2)*
+- Verified: 0 type + 0 console errors. The full both-pillar run is still filling the Compliance band (breaches incoming) for a final complete-board capture.
+
+**Trajectory: 71 → 83 → 89 → (round-4 closes the #1 gap + the staged overturn).** Loop continues; next: final both-pillar board capture + round-4 score.

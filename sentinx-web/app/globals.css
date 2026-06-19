@@ -176,6 +176,14 @@
 .cell-yielded::after { content: ""; position: absolute; inset: 0; background: linear-gradient(45deg, transparent 40%, var(--surface) 40%, var(--surface) 60%, transparent 60%); }
 .cell-unknown { background: var(--ink-faint); }
 
+/* The OVERTURN — one orchestrated moment staged as VAR: on-field 'clean' -> review -> fork.
+   Three beats inside a ≤320ms budget; instant under prefers-reduced-motion (the reset below). */
+@keyframes ov-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+.ov { opacity: 0; animation: ov-in .2s ease-out forwards; }
+.ov-1 { animation-delay: 0ms; }
+.ov-2 { animation-delay: 120ms; }
+.ov-3 { animation-delay: 250ms; }
+
 /* ============================================================
    MARKETING LANDING — Latticly-style surface, theme-aware.
    Every value resolves from the SENTINX tokens so light & dark
