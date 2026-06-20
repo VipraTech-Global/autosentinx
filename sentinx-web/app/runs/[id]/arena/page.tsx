@@ -5,7 +5,7 @@ import Arena from "@/components/live/arena";
 import { fromStateJson, type RunView } from "@/lib/runview";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-const SAMPLES = ["both-pillar-live", "live-8play", "fixture-3play", "midrun", "degraded"] as const;
+const SAMPLES = ["both-pillar-live", "both-pillar-full", "live-8play", "fixture-3play", "midrun", "degraded"] as const;
 
 export default function ArenaPage() {
   const params = useParams<{ id: string }>();
