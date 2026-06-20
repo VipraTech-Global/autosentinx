@@ -126,8 +126,7 @@ class RunViewProjection:
                 "attacker": s.llm_attacker_model, "classifier": s.llm_classifier_model,
                 "judges": s.llm_judge_models, "maxTurns": max_turns,
             },
-            # Wave-1: recon ran but isn't retained server-side yet (Wave 4) — honest 'skipped', not a fake profile.
-            "recon": {"status": "skipped", "reason": "recon profile not retained server-side yet (engine-port Wave 4)"},
+            "recon": self._recon(run),
             "summary": {"total": max(int(run_roe.get("budget") or 0), run.num_attempts, len(plays)),
                         "done": done, "fails": fails, "risks": risks, "bypasses": byp},
             "plays": plays,
@@ -136,6 +135,30 @@ class RunViewProjection:
         if run_roe.get("intensity") in _INTENSITY:
             out["intensity"] = run_roe["intensity"]
         return out
+
+    def _recon(self, run) -> dict:
+        """Real ReconView from the persisted campaign-start scouting profile (EP Wave 4). Honest
+        'skipped' when a run predates the recon column or recon was blocked. links[] is intentionally
+        omitted — the engine does not derive intel→objective threads (that's a UI/demo concept)."""
+        raw = (getattr(run, "recon", "") or "").strip()
+        if not raw:
+            return {"status": "skipped", "reason": "no recon profile retained for this run"}
+        try:
+            r = json.loads(raw)
+        except Exception:  # noqa: BLE001
+            return {"status": "skipped", "reason": "recon profile unreadable"}
+        return {
+            "status": "done",
+            "contact": r.get("contact_name") or "",
+            "profile": {
+                "disclosesAi": r.get("discloses_ai"),
+                "staysInScope": r.get("stays_in_scope"),
+                "refusalStyle": r.get("refusal_style") or "",
+                "notes": r.get("notes") or [],
+            },
+            "steps": [{"probe": s.get("probe"), "reply": s.get("reply"), "note": s.get("note")}
+                      for s in (r.get("steps") or [])],
+        }
 
     def _play(self, attempt, turns, spec, pillar, fw, max_turns, incident) -> dict:
         tv = [{"idx": t.idx, "phase": t.phase, "intent": t.attacker_intent,

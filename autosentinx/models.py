@@ -40,6 +40,7 @@ class Run(SQLModel, table=True):
     num_succeeded: int = 0
     # governance (Phase 7) — approval gate + Rules of Engagement (recorded; light enforcement)
     roe: str = ""               # JSON: {objectives|modes, budget, strategy, target}
+    recon: str = ""             # JSON: ReconProfile from campaign-start scouting (engine-port Wave 4); "" until recon runs
     approved_by: str = ""
     approved_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=_now)

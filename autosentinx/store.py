@@ -11,6 +11,7 @@ class Store(Protocol):
     async def create_run(self, run: Run) -> Run: ...
     async def add_attempt(self, attempt: Attempt, turns: list[Turn]) -> None: ...
     async def set_run_status(self, run_id: str, status: str, num_attempts: int, num_succeeded: int) -> None: ...
+    async def set_run_recon(self, run_id: str, recon_json: str) -> None: ...
     async def get_run(self, run_id: str) -> dict: ...
     async def list_runs(self) -> list[Run]: ...
 
@@ -40,6 +41,14 @@ class SqlModelStore:
                 run.status = status
                 run.num_attempts = num_attempts
                 run.num_succeeded = num_succeeded
+                s.add(run)
+                await s.commit()
+
+    async def set_run_recon(self, run_id: str, recon_json: str) -> None:
+        async with SessionLocal() as s:
+            run = await s.get(Run, run_id)
+            if run:
+                run.recon = recon_json
                 s.add(run)
                 await s.commit()
 

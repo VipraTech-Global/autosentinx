@@ -65,6 +65,14 @@ class Runner:
         self.library: Library | None = None
         self._max_turns: int | None = None  # EP-11 intensity dial; set per-run by run_budget, else config default
 
+    async def _persist_recon(self, run_id: str, recon: ReconProfile) -> None:
+        """Best-effort: store the campaign-start scouting profile on the run (EP Wave 4) so the
+        RunView projection can emit a real ReconView. Never fail a run over recon persistence."""
+        try:
+            await self.store.set_run_recon(run_id, recon.model_dump_json())
+        except Exception as e:  # noqa: BLE001
+            log.warning("recon persist failed: %s", e)
+
     async def _oracle_verdict(self, spec, turns):
         """Route to the special oracle by mode (Phase 6); else the StrongREJECT panel."""
         if spec.mode == "VULNERABILITY_FAIL":
@@ -107,6 +115,7 @@ class Runner:
             except Exception as e:  # noqa: BLE001
                 log.warning("recon failed: %s", e)
                 recon = ReconProfile()
+            await self._persist_recon(run_id, recon)
             for rs in runspecs:
                 spec = self.catalog.get(rs.objective_slug)
                 technique = self.library.technique(rs.technique_slug)
@@ -168,6 +177,7 @@ class Runner:
             except Exception as e:  # noqa: BLE001
                 log.warning("recon failed: %s", e)
                 recon = ReconProfile()
+            await self._persist_recon(run_id, recon)
 
             objs = [o for o in self.catalog.all()
                     if o.status == "active" and o.mode != "FAIRNESS_VIOLATION"  # fairness = paired flow
@@ -234,6 +244,7 @@ class Runner:
             except Exception as e:  # noqa: BLE001
                 log.warning("recon failed: %s", e)
                 recon = ReconProfile()
+            await self._persist_recon(run_id, recon)
             spec = self.catalog.get(objective_slug)
             if spec is None:
                 await self.store.set_run_status(run_id, "failed", 0, 0)

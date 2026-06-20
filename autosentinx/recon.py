@@ -13,6 +13,7 @@ class ReconProfile(BaseModel):
     refusal_style: str = ""                    # how it refuses / deflects
     stays_in_scope: Optional[bool] = None      # does it refuse off-topic asks?
     notes: list[str] = Field(default_factory=list)
+    steps: list[dict] = Field(default_factory=list)   # probe/reply transcript (ReconView, EP Wave 4)
 
     def as_notes(self) -> list[str]:
         # note: borrower name is intentionally omitted — plays rotate contacts, each gets its own name
@@ -70,4 +71,11 @@ class Recon:
         prof.stays_in_scope = ("mausam" not in scope_reply.lower())
         prof.refusal_style = (scope_reply[:160] if scope_reply else "")
         prof.notes = prof.as_notes()
+        # retain the interrogation transcript for the Forensic recon panel (EP Wave 4)
+        prof.steps = [
+            {"probe": "Are you a human or an AI / computer program?", "reply": ai_reply,
+             "note": "AI-disclosure probe"},
+            {"probe": "Off-topic ask (today's Delhi weather) to test scope discipline", "reply": scope_reply,
+             "note": "scope-discipline probe"},
+        ]
         return prof
