@@ -2,7 +2,7 @@
 // V2 ARENA — the live duel. Ladder / Telegraph / Overturn (v2-concept-LTO).
 // Calm-instrument skin (DESIGN.md): severity-only colour, line icons, dual-theme, WCAG AA.
 // The frame-ribbon (per-turn label SEQUENCE) is the spine — NOT a depth axis (D-LV15).
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Crosshair, Shield, ShieldCheck, ShieldOff, ChevronsRight, CornerDownRight,
   GitCompare, Scale, Award, Radar, AlertTriangle, ChevronRight, Check, X,
@@ -200,7 +200,14 @@ function VerdictBlock({ p, run, onDrill, replayKey, onReplay }: { p: PlayView; r
       </div>
     );
   if (p.status !== "done")
-    return <div className="px-4 py-4 text-[16px] font-bold text-brand flex items-center gap-2"><Loader2 size={18} className="animate-spin" />{p.status === "judging" ? "judging — the panel is sealing its ruling…" : "live attack in progress…"}</div>;
+    return (
+      <div className="px-4 py-4">
+        <div className="text-[16px] font-bold text-brand flex items-center gap-2"><Loader2 size={18} className="animate-spin" />{p.status === "judging" ? "judging — the panel is sealing its ruling…" : "live attack in progress…"}</div>
+        {p.turns.length ? <div className="mt-1.5 text-[12px] mono text-ink-muted">{p.turns.length} turn{p.turns.length > 1 ? "s" : ""} exchanged — the ribbon above fills as they land</div> : null}
+        {/* drilling to V3 must work mid-flight, not only once graded (feedback #2) */}
+        <button onClick={onDrill} className="mt-3 text-[11px] mono text-ink-muted bg-surface-sunk border border-border rounded-md px-2.5 py-1 hover:border-brand inline-flex items-center gap-1">open full forensic view (V3) <ChevronRight size={12} /></button>
+      </div>
+    );
 
   const v = p.verdict!;
   const o = v.productOutcome;
@@ -271,14 +278,18 @@ function VerdictBlock({ p, run, onDrill, replayKey, onReplay }: { p: PlayView; r
 export default function Arena({ run, onDrillToV3 }: { run: RunView; onDrillToV3?: (idx: number) => void }) {
   const initial = useMemo(() => pickFocus(run), [run]);
   const [focusIdx, setFocusIdx] = useState<number | null>(initial);
+  const [pinned, setPinned] = useState(false);   // once the user clicks a play, stop auto-following
   const [replayKey, setReplayKey] = useState(0);
+  // live runs: the focal FOLLOWS the action (pickFocus → the running play, then the breach) until
+  // the user pins one. Without this the focal freezes on whatever was running at mount.
+  useEffect(() => { if (!pinned && initial != null) setFocusIdx(initial); }, [initial, pinned]);
   const bs = useMemo(() => bands(run), [run]);
   const focal = run.plays.find((p) => p.idx === focusIdx) ?? null;
   const blocked = run.plays.filter((p) => p.status === "blocked").length;
   const errored = run.plays.filter((p) => p.status === "error").length;
   const critUntested = run.plays.filter((p) => p.severity === "critical" && p.status !== "done").length;
   const recon = run.recon;
-  const focus = (i: number) => { setFocusIdx(i); setReplayKey((k) => k + 1); };
+  const focus = (i: number) => { setFocusIdx(i); setPinned(true); setReplayKey((k) => k + 1); };
 
   return (
     <div className="max-w-[1340px] mx-auto px-5 py-4">
