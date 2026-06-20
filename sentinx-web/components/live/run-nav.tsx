@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Logo } from "@/components/logo";
 import { ROLES, getRole, setRole, roleHref, screenHref, canSeeLive, type Role, type RunScreen } from "@/lib/role";
 
 const TABS: { screen: RunScreen; label: string }[] = [
@@ -20,22 +21,19 @@ export function RunNav({ runId, current, runLabel, target, data }: {
   runId: string; current: RunScreen; runLabel?: string; target?: string; data?: string;
 }) {
   const router = useRouter();
-  const [role, setRoleState] = useState<Role>("admin");
+  const [role, setRoleState] = useState<Role | null>(null); // null until mounted → no SSR/first-paint role leak
   useEffect(() => setRoleState(getRole()), []);
   const onRole = (r: Role) => { setRole(r); setRoleState(r); router.push(roleHref(r, runId, { data })); };
 
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-bg/90 backdrop-blur">
       <div className="flex items-center gap-3 px-5 h-14">
-        <Link href={screenHref("overview", runId)} aria-label="run home" className="flex items-center gap-2 font-semibold text-[15px] shrink-0">
-          <span className="w-4 h-4 rounded-full border-[1.5px] border-brand relative">
-            <span className="absolute inset-[-1.5px] rounded-full border-t-[1.5px] border-r-[1.5px] border-brand" style={{ borderTopColor: "transparent", animation: "phase-pulse 2.4s linear infinite" }} />
-          </span>
-          SENTIN<span className="text-brand">X</span>
+        <Link href={screenHref("overview", runId)} aria-label="AutoSentinX — run home" className="shrink-0">
+          <Logo />
         </Link>
         {runLabel ? <span className="mono text-[12px] text-ink-muted hidden lg:inline truncate max-w-[230px]">{runLabel}{target ? ` · ${target}` : ""}</span> : null}
         <nav aria-label="Run views" className="flex items-center gap-1 ml-1">
-          {TABS.filter((t) => t.screen !== "live" || canSeeLive(role)).map((t) => {
+          {TABS.filter((t) => t.screen !== "live" || (role !== null && canSeeLive(role))).map((t) => {
             const active = t.screen === current;
             return (
               <Link key={t.screen} href={screenHref(t.screen, runId, { data })} aria-current={active ? "page" : undefined}
@@ -48,7 +46,7 @@ export function RunNav({ runId, current, runLabel, target, data }: {
         <span className="flex-1" />
         <label className="flex items-center gap-1.5 text-[11px] text-ink-faint" title="Lands you on this role's home screen (personas §ownership)">
           <span className="hidden md:inline">viewing as</span>
-          <select value={role} onChange={(e) => onRole(e.target.value as Role)} aria-label="Viewing-as role"
+          <select value={role ?? "admin"} onChange={(e) => onRole(e.target.value as Role)} aria-label="Viewing-as role"
             className="mono text-[11.5px] bg-surface border border-border rounded-md px-2 py-1 text-ink cursor-pointer">
             {ROLES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
           </select>

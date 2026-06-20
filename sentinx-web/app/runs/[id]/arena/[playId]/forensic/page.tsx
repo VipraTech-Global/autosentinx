@@ -60,7 +60,7 @@ export default function ForensicPage() {
         <span className="flex-1" />
         <span className="inline-flex items-center gap-1">
           <button disabled={!prev} onClick={() => prev && router.push(forensicHref(prev.idx))} className="px-1.5 py-1 rounded-md border border-border text-ink-muted hover:border-brand disabled:opacity-40 disabled:hover:border-border" title={prev ? `prev · ${prev.id}` : "first play"} aria-label="previous play"><ChevronLeft size={14} /></button>
-          <select value={playIdx} onChange={(e) => router.push(forensicHref(Number(e.target.value)))} aria-label="jump to a play's forensic" className="mono text-[11px] bg-surface border border-border rounded-md px-2 py-1 text-ink max-w-[260px] cursor-pointer">
+          <select value={plays.some((p) => p.idx === playIdx) ? playIdx : (plays[0]?.idx ?? 0)} onChange={(e) => router.push(forensicHref(Number(e.target.value)))} aria-label="jump to a play's forensic" className="mono text-[11px] bg-surface border border-border rounded-md px-2 py-1 text-ink max-w-[260px] cursor-pointer">
             {plays.map((p) => <option key={p.idx} value={p.idx}>{p.id} · {cap(p)}</option>)}
           </select>
           <button disabled={!next} onClick={() => next && router.push(forensicHref(next.idx))} className="px-1.5 py-1 rounded-md border border-border text-ink-muted hover:border-brand disabled:opacity-40 disabled:hover:border-border" title={next ? `next · ${next.id}` : "last play"} aria-label="next play"><ChevronRight size={14} /></button>
