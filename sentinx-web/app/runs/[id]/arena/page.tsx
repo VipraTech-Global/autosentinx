@@ -46,7 +46,9 @@ export default function ArenaPage() {
   return (
     <div className="min-h-dvh bg-bg text-ink">
       <RunNav runId={runId} current="live" runLabel={run?.id} target={run?.target || undefined} data={data} />
-      {restricted ? (
+      {role === null ? (
+        <div className="max-w-[700px] mx-auto mt-24 text-center mono text-ink-faint text-[12px]">resolving access…</div>
+      ) : restricted ? (
         <div className="max-w-[620px] mx-auto mt-24 text-center px-6">
           <div className="text-[15px] font-semibold text-ink">The live duel is restricted</div>
           <div className="mono text-[12.5px] text-ink-muted mt-2">View 2 (Arena) and View 3 (Forensic) are visible only to <b className="text-ink">Admin / QA</b> and <b className="text-ink">Security</b>. Switch role above, or:</div>
