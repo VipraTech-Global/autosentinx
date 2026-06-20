@@ -133,10 +133,16 @@ async def _roe_launch_check(run_id: str, roe: dict, operator: str) -> None:
     from autosentinx.roe import (AlwaysClear, RoEDenied, RoEManifest, SandboxAttestation,
                                  decide_launch)
     tgt = roe.get("target") or ""
+    # build the attestation from what /scan recorded: when the operator attested a sandbox tenant,
+    # all four real channels are asserted disabled; otherwise an empty attestation → advisory deny.
+    attested = bool(roe.get("sandbox_attested"))
+    attestation = SandboxAttestation(
+        target_id=tgt, dialing_disabled=attested, sms_disabled=attested, crm_disabled=attested,
+        pii_lookup_disabled=attested, attested_by=(roe.get("attested_by") or operator) if attested else "",
+    )
     decision = decide_launch(
         RoEManifest(operator=operator, target_id=tgt, allowed_techniques=set(roe.get("techniques") or [])),
-        SandboxAttestation(target_id=tgt),          # no attestation collected yet → advisory
-        AlwaysClear(), operator=operator, target_id=tgt,
+        attestation, AlwaysClear(), operator=operator, target_id=tgt,
     )
     enforce = os.environ.get("ROE_ENFORCE") in ("1", "true", "True")
     await append_event("roe.launch_checked", run_id=run_id, actor=operator,
@@ -199,6 +205,11 @@ async def scan(
     csrt: str = Query("off"),
     include_draft: bool = Query(False),
     limit: Optional[int] = Query(None),
+    sandbox_attested: bool = Query(
+        False, description="operator attests the target is a sandbox/test tenant with real borrower "
+                           "channels (dialing/SMS/CRM/PII-lookup) DISABLED — required for the RoE launch "
+                           "check to pass (advisory unless ROE_ENFORCE=1)"),
+    attested_by: Optional[str] = Query(None, description="attesting authority for the sandbox attestation"),
 ):
     """Request a scan. Governance (Phase 7): the run is created PENDING_APPROVAL and does NOT run until
     POST /runs/{id}/approve. The RoE (scope + params) is recorded; an audit event is chained.
@@ -213,7 +224,8 @@ async def scan(
                             detail="target must be a valid http(s) URL, e.g. https://agent.example.com")
     roe = {"strategy": strategy, "budget": budget, "objectives": objectives, "modes": modes,
            "techniques": techniques, "n_per_objective": n_per_objective, "csrt": csrt,
-           "include_draft": include_draft, "limit": limit, "target": tgt}
+           "include_draft": include_draft, "limit": limit, "target": tgt,
+           "sandbox_attested": sandbox_attested, "attested_by": attested_by}
     run = Run(target_url=tgt, status="pending_approval", note=f"{strategy} scan (pending approval)",
               roe=json.dumps(roe))
     await store.create_run(run)
