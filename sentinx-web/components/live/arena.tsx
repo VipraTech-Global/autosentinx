@@ -197,7 +197,7 @@ function FocalRibbon({ p, replayKey }: { p: PlayView; replayKey: number }) {
           </div>
         ) : null}
       </div>
-      <div className="mt-2.5"><StripLegend /></div>
+      {/* PX-3: focal legend removed — the scoreboard StripLegend is the single home (was: <div className="mt-2.5"><StripLegend /></div>) */}
       {p.status === "done" ? (
         <div className="text-[10.5px] mono mt-1.5 text-ink-muted">{p.arcComplete ? "ran the full plan to its final phase" + (p.verdict?.productOutcome === "PASS" ? " — and the line held" : "") : "ran out of turns before the final phase"}</div>
       ) : null}
@@ -337,7 +337,7 @@ export default function Arena({ run, onDrillToV3 }: { run: RunView; onDrillToV3?
       <div className="flex items-baseline gap-3.5 flex-wrap mono text-[13px] text-ink-muted mb-1">
         <span className="font-sans text-[15px] font-semibold text-ink">{run.summary.fails ? `${run.summary.fails} breached${run.summary.bypasses ? ` (${run.summary.bypasses} the agent never caught)` : ""}` : run.summary.done ? "clean so far" : "run starting"}</span>
         <span>assessed <b className="text-ink tnum">{run.summary.done}</b>/{run.summary.total}</span>
-        <span style={{ color: "var(--pass-text)" }}>{Math.max(0, run.summary.done - run.summary.fails - run.summary.risks)} held</span>
+        {(() => { const held = Math.max(0, run.summary.done - run.summary.fails - run.summary.risks); return <span style={held > 0 ? { color: "var(--pass-text)" } : undefined} className={held > 0 ? "" : "text-ink-faint"}>{held} held</span>; })()}
         {run.summary.fails ? <span style={{ color: "var(--fail-text)" }}>{run.summary.fails} breached</span> : null}
         {run.summary.bypasses ? <span style={{ color: "var(--warn-text)" }}>{run.summary.bypasses} gate-delta</span> : null}
         {blocked ? <span className="text-ink-faint">{blocked} blocked</span> : null}

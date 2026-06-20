@@ -68,18 +68,19 @@ export default function ArenaPage() {
         ) : null}
         {livePoll ? <span className="mono text-[10px] uppercase tracking-wide text-warn-text border border-warn-text/40 rounded px-1.5 py-0.5" title="Dev bridge: the engine run is real, but login + scan are mocked and the ROE-approval gate is skipped. Previews the parked engine port (D-LV26).">dev bridge</span> : null}
         <span className="flex-1" />
-        {/* zoom: Glance(V1·deferred) · Arena(V2) · Detail(V3) */}
+        {/* zoom: Arena(V2) · Detail(V3) — Glance(V1) removed until V1 ships (PX-1, D-LV23) */}
         <span className="inline-flex border border-border rounded-md overflow-hidden text-[11px] mono">
-          <span className="px-2.5 py-1 text-ink-faint cursor-not-allowed" title="V1 Glance — coming soon">Glance</span>
-          <span className="px-2.5 py-1 bg-brand-soft text-brand border-l border-border">Arena</span>
+          <span className="px-2.5 py-1 bg-surface-sunk text-ink font-medium">Arena</span>
           <button className="px-2.5 py-1 text-ink-muted border-l border-border hover:bg-surface-sunk" onClick={() => run && router.push(`/runs/${params?.id}/arena/${run.plays.find((p) => p.status === "done")?.idx ?? 0}/forensic?data=${data}`)}>Detail</button>
         </span>
         {/* Arena ⇄ Processing — the classic live screen (C4); temporary, OPEN-LV1 */}
         <button className="text-[11px] mono text-ink-muted border border-border rounded-md px-2.5 py-1 hover:border-brand inline-flex items-center gap-1" title="the classic Processing screen (C4) — temporary while V2-vs-C4 is unresolved (OPEN-LV1)" onClick={() => router.push(`/runs/${params?.id}/processing`)}>Processing ↗</button>
-        {/* sample switcher (build/test aid, OPEN-LV3) */}
-        <select value={data} onChange={(e) => router.replace(`?data=${e.target.value}`)} className="mono text-[11px] bg-surface border border-border rounded-md px-2 py-1 text-ink-muted">
-          {SAMPLES.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
+        {/* sample switcher (build/test aid, OPEN-LV3 / PX-2) — dev-only: visible in the review server, gone in a production build */}
+        {process.env.NODE_ENV !== "production" ? (
+          <select value={data} onChange={(e) => router.replace(`?data=${e.target.value}`)} className="mono text-[11px] bg-surface border border-border rounded-md px-2 py-1 text-ink-muted">
+            {SAMPLES.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        ) : null}
       </div>
 
       {err ? <div className="max-w-[700px] mx-auto mt-20 text-center mono text-fail-text">{err}</div> : null}
