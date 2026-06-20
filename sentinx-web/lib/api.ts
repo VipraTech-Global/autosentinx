@@ -35,12 +35,16 @@ export interface ScanConfig {
   endpoint?: string;
   agentName?: string;
   budget?: number;
+  intensity?: string;   // EP-11 dial level (low|med|high|xhigh|max|ultra) — echoed on V2's live sub-bar
+  maxTurns?: number;    // turns/attack the dial maps to; overrides the engine's config max_turns
 }
 
 export async function startScan(cfg: ScanConfig = {}): Promise<{ run_id: string; status: string }> {
   const q = new URLSearchParams({ strategy: "ucb", budget: String(cfg.budget ?? 6) });
   // The scan runs against the exact URL the user enters (any AARAV-compatible agent).
   if (cfg.endpoint) q.set("target", cfg.endpoint.trim());
+  if (cfg.intensity) q.set("intensity", cfg.intensity);
+  if (cfg.maxTurns) q.set("max_turns", String(cfg.maxTurns));
   const r = await req(`/api/scan?${q.toString()}`, { method: "POST" });
   return r.json();
 }

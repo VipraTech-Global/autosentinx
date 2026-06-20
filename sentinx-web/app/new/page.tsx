@@ -29,9 +29,14 @@ export default function RunConfigPage() {
     setErr("");
     setPhase("checking");
     try {
-      // create the run (pending_approval) — the scan runs against the exact endpoint entered above
+      // create the run (pending_approval) — the scan runs against the exact endpoint entered above.
+      // intensity dial (EP-11) drives BOTH budget (# attacks) and max_turns (depth/attack) server-side.
       const cfg = INTENSITY[intensity];
-      const { run_id } = await startScan({ endpoint, agentName: agent, budget: cfg.attacks === "all" ? 37 : cfg.attacks });
+      const { run_id } = await startScan({
+        endpoint, agentName: agent,
+        budget: cfg.attacks === "all" ? 37 : cfg.attacks,
+        intensity, maxTurns: cfg.turns,
+      });
       setRunId(run_id);
       setPhase("approve");
     } catch (e2) {

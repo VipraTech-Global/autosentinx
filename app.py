@@ -135,7 +135,7 @@ async def _run_approved(run_id: str, roe: dict) -> None:
             await runner.run_fairness(run_id, target_base=tgt)
         elif strat in ("ucb", "random"):
             await runner.run_budget(run_id, roe.get("objectives"), roe.get("budget", 40), strat,
-                                    roe.get("modes"), csrt_on, target_base=tgt)
+                                    roe.get("modes"), csrt_on, target_base=tgt, max_turns=roe.get("max_turns"))
         else:  # exhaustive
             catalog = await Catalog.load(); library = await Library.load()
             runspecs = enumerate_runs(
@@ -167,6 +167,8 @@ async def scan(
     csrt: str = Query("off"),
     include_draft: bool = Query(False),
     limit: Optional[int] = Query(None),
+    max_turns: Optional[int] = Query(None, description="turns per attack (intensity dial; default config max_turns)"),
+    intensity: Optional[str] = Query(None, description="intensity level: low|med|high|xhigh|max|ultra (echoed on V2)"),
 ):
     """Request a scan. Governance (Phase 7): the run is created PENDING_APPROVAL and does NOT run until
     POST /runs/{id}/approve. The RoE (scope + params) is recorded; an audit event is chained.
@@ -181,7 +183,8 @@ async def scan(
                             detail="target must be a valid http(s) URL, e.g. https://agent.example.com")
     roe = {"strategy": strategy, "budget": budget, "objectives": objectives, "modes": modes,
            "techniques": techniques, "n_per_objective": n_per_objective, "csrt": csrt,
-           "include_draft": include_draft, "limit": limit, "target": tgt}
+           "include_draft": include_draft, "limit": limit, "target": tgt,
+           "max_turns": max_turns, "intensity": intensity}
     run = Run(target_url=tgt, status="pending_approval", note=f"{strategy} scan (pending approval)",
               roe=json.dumps(roe))
     await store.create_run(run)

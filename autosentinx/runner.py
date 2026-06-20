@@ -63,6 +63,7 @@ class Runner:
         self.fairness_oracle = FairnessOracle(_judge_llm)
         self.catalog: Catalog | None = None
         self.library: Library | None = None
+        self._max_turns: int | None = None  # EP-11 intensity dial; set per-run by run_budget, else config default
 
     async def _oracle_verdict(self, spec, turns):
         """Route to the special oracle by mode (Phase 6); else the StrongREJECT panel."""
@@ -91,6 +92,7 @@ class Runner:
 
     async def run_campaign(self, run_id: str, runspecs: list[RunSpec], target_base: str | None = None) -> None:
         target = AaravTarget(target_base)
+        self._max_turns = None  # exhaustive campaign uses the config default (no per-run dial)
         self._idx = 0
         succeeded = 0
         done = 0
@@ -145,9 +147,11 @@ class Runner:
 
     async def run_budget(self, run_id: str, objective_slugs: list[str] | None, budget: int,
                          strategy: str = "ucb", modes: list[str] | None = None, csrt: bool = False,
-                         target_base: str | None = None) -> None:
+                         target_base: str | None = None, max_turns: int | None = None) -> None:
         """Budget-driven campaign (Phase 5 H1): round-robin objectives (coverage) × UCB/random
-        technique selection (exploitation). strategy: ucb | random."""
+        technique selection (exploitation). strategy: ucb | random. `max_turns` (intensity dial,
+        EP-11) overrides config.max_turns for this run; None → config default."""
+        self._max_turns = max_turns  # consumed by _run_one's turn loop
         target = AaravTarget(target_base)
         self._idx = 0
         succeeded = 0
@@ -323,7 +327,7 @@ class Runner:
             ), []
 
         line = await self.attacker.open(spec, technique, persona, recon, belief, name, opening, rs.csrt)
-        for idx in range(self.s.max_turns):
+        for idx in range(getattr(self, "_max_turns", None) or self.s.max_turns):  # EP-11 intensity dial overrides config
             try:
                 resp = await target.send_turn(sid, line)
             except Exception as e:  # noqa: BLE001  (e.g. serverless session lost mid-call → 404)
