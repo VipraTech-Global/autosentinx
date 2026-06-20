@@ -38,6 +38,18 @@
 
 - **D-LV23 · V1 design + build DEFERRED until V2 and V3 are complete.** Sequence: **V2 → V3 → V1**. The documented intent stands (customer-facing, IP-safe, **most-abstracted posture glance** — posture + coverage + one IP-safe proof, *distinct* from the V2 ribbon, per `D-LV6`/`D-Q12`), but **no detailed V1 design** in this pass. *Refines `D-LV3` (now design is deferred too).* *(Q12)*
 
+## Build sequencing & the engine port (D-LV-dep3)
+
+- **D-LV26 · Engine port (`D-LV-dep3`) is PARKED until the `RunView` contract is locked — and the contract is NOT lockable yet because none of V1, V2 or V3 is finalized.** *(decided 2026-06-20)*
+  - **The dependency:** `ENGINE-PORT-PLAN.md` treats `sentinx-web/lib/runview.ts` as its **frozen target**. A port to a contract that can still change is premature. The contract cannot be frozen while a *consuming* view is still in flight.
+  - **The fact, recorded plainly — none of the three live views is finalized:**
+    - **V1** — **unbuilt** (`D-LV23` defers it; sequence V2 → V3 → V1). Because V1 lives in the **live-duel family** (`D-LV10`), it consumes `RunView` and will **exercise / possibly extend** the shape. It is the principal reason the contract is not yet stable.
+    - **V2 + V3** — **built and adversarially scored to 96–97/100 ("shippable")** but **NOT signed-off / finalized**; they may still change. "Scored high" ≠ "frozen."
+    - **Open decisions still live:** `OPEN-LV1` (V1 ⇄ C4) and `OPEN-LV2` (V2 demo mode) — either can touch the surface or the shape.
+  - **Why parking is low-risk (not wasted):** the doc discipline is **additive, ID-keyed, supersedes-nothing** (`README.md`), so any future shape growth **extends** the port (one projector line per new field) and **never invalidates** it. The plan already paid for itself by **de-risking** the architecture (proved the contract is producible server-side: poll `/console/runs/{id}`, **no core migration**, both-pillar "for free" via `run_budget`) and now stands as a **living ledger**.
+  - **Trigger to un-park:** **V1 built → `OPEN-LV1`/`OPEN-LV2` resolved → V2/V3 finalized → `runview.ts` frozen** ⇒ then build the port (Phase 1 → 2 → 3 per `ENGINE-PORT-PLAN.md`).
+  - **Notes for whoever builds it later:** (a) the canonical-rule fix (`EP-5`, `outcome.ts → outcome.py`) is **shape-independent** so it *could* land early, but it only bites the borderline single-judge RISK band `[0.3, 0.55)` — captured runs are clear-cut, so it can wait too; (b) reconcile against **`feat/security-governance-keystones`** (it edits `runner.py` and adds an `roe.py` *policy* module — distinct from the `Run.roe` JSON config the port writes; expect a `runner.py` line-anchor shift).
+
 ## §Open (interview continuing)
 
 - **OPEN-LV1 · The customer's live screen — V1 vs canonical C4 Processing.** Keep the canonical **C4 Processing** for the customer for now; the relationship between **V1** and **C4** is **UNRESOLVED** — candidates: a customer **toggle V1 ⇄ C4**, V1 as the default with C4 on demand, or V1 eventually superseding C4. To revisit. *(Q4)*
