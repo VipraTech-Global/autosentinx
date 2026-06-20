@@ -42,6 +42,11 @@ def public_view(finding: dict) -> dict:
     return view
 
 
+def technique_category(technique: str) -> str:
+    """Public: coarse technique family (no params/chain) — used by report recipe-redaction."""
+    return _category(technique)
+
+
 def _category(technique: str) -> str:
     """Abstract a technique slug to a coarse family (no parameters / chain)."""
     t = technique.lower()

@@ -417,13 +417,25 @@ async def console_runs():
 
 
 @app.get("/console/runs/{run_id}")
-async def console_run(run_id: str):
-    """One run + observations in the frontend view-model shape (catalog-joined, D8 split, fairness grouped)."""
+async def console_run(
+    run_id: str,
+    redact_recipe: bool = Query(True, description="P9 dual-use guard: when true (default) the report "
+                                                  "abstracts the reconstructable attacker recipe. Pass "
+                                                  "false to view full recipe detail — that access is "
+                                                  "audit-logged."),
+    viewer: str = Query("operator", description="who is viewing (recorded when full recipe is requested)"),
+):
+    """One run + observations in the frontend view-model shape (catalog-joined, D8 split, fairness grouped).
+
+    Recipe suppression (P9): standard views abstract the attacker probe + technique; requesting the full
+    recipe (redact_recipe=false) is the access-gated, audit-logged detail path."""
     d = await store.get_run(run_id)
     if not d:
         raise HTTPException(status_code=404, detail="run not found")
+    if not redact_recipe:  # access-gated full recipe → audit the access (P9)
+        await append_event("recipe.detail_viewed", run_id=run_id, actor=viewer, detail={"run_id": run_id})
     catalog = await Catalog.load()
-    return ConsoleView(catalog).run_full(d["run"], d["attempts"])
+    return ConsoleView(catalog).run_full(d["run"], d["attempts"], redact_recipe=redact_recipe)
 
 
 @app.get("/runs")

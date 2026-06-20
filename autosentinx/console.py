@@ -9,6 +9,7 @@ import json
 from datetime import timedelta
 
 from .catalog import Catalog, ObjectiveSpec
+from .suppression import technique_category
 
 COMPLIANCE_FRAMEWORKS = {"RBI-FPC", "DPDP", "TRAI"}
 SECURITY_FRAMEWORKS = {"OWASP-LLM", "OWASP-AGENTIC", "MITRE-ATLAS", "NIST-AI-RMF"}
@@ -73,8 +74,12 @@ def _detector_hits(raw: str) -> list[dict]:
     return out
 
 
-def _evidence(turns, created_at) -> list[dict]:
-    """The landing exchange + the decisive turn (where the finding landed) — probe ↔ target."""
+def _evidence(turns, created_at, redact_recipe: bool = False) -> list[dict]:
+    """The landing exchange + the decisive turn (where the finding landed) — probe ↔ target.
+
+    When `redact_recipe` (P9 dual-use guard, the default for standard views), the verbatim attacker
+    probe is replaced by an abstracted intent summary so the view carries no reconstructable recipe;
+    the target reply (the regulator-relevant evidence) is always shown verbatim."""
     if not turns:
         return []
     decisive = next((t for t in turns if getattr(t, "label", "") == "Succeed"), turns[-1])
@@ -88,7 +93,14 @@ def _evidence(turns, created_at) -> list[dict]:
     for t in chosen:
         atk, tgt = getattr(t, "attacker_line", "") or "", getattr(t, "target_reply", "") or ""
         if atk:
-            ev.append({"idx": t.idx, "speaker": "probe", "text": atk, "lang": _lang(atk), "ts": _ist(created_at, t.idx)})
+            if redact_recipe:
+                intent = getattr(t, "attacker_intent", "") or "probe"
+                ev.append({"idx": t.idx, "speaker": "probe", "redacted": True,
+                           "text": f"[probe abstracted — {intent}; full recipe access-gated]",
+                           "lang": _lang(atk), "ts": _ist(created_at, t.idx)})
+            else:
+                ev.append({"idx": t.idx, "speaker": "probe", "text": atk, "lang": _lang(atk),
+                           "ts": _ist(created_at, t.idx)})
         if tgt:
             ev.append({"idx": t.idx, "speaker": "target", "text": tgt, "lang": _lang(tgt), "ts": _ist(created_at, t.idx)})
     return ev
@@ -133,7 +145,7 @@ class ConsoleView:
         return "AARAV — NBFC voice debt-collection agent"
 
     # ---- full run with observations ----
-    def run_full(self, run, attempts: list[dict]) -> dict:
+    def run_full(self, run, attempts: list[dict], redact_recipe: bool = True) -> dict:
         rows = [(a["attempt"], a["turns"]) for a in attempts]
         observations: list[dict] = []
         counters = {"security": 0, "compliance": 0}
@@ -150,20 +162,20 @@ class ConsoleView:
             if attempt.mode == FAIRNESS_MODE:
                 if attempt.objective_id.count("/") != 1:  # only build from the summary row
                     continue
-                observations.append(self._fairness_obs(attempt, fairness_samples, run, counters))
+                observations.append(self._fairness_obs(attempt, fairness_samples, run, counters, redact_recipe))
                 continue
             spec = self.catalog.get(attempt.objective_slug)
             has_comp = bool(spec and any(e.framework in COMPLIANCE_FRAMEWORKS for e in spec.crosswalk))
             has_sec = bool(spec and any(e.framework in SECURITY_FRAMEWORKS for e in spec.crosswalk))
             if has_comp and has_sec:  # D8 — emit one observation per pillar, linked
                 inc = f"INC-{attempt.id}"
-                sec = self._obs(attempt, turns, spec, "security", SECURITY_FRAMEWORKS, run, counters, inc)
-                com = self._obs(attempt, turns, spec, "compliance", COMPLIANCE_FRAMEWORKS, run, counters, inc)
+                sec = self._obs(attempt, turns, spec, "security", SECURITY_FRAMEWORKS, run, counters, inc, redact_recipe)
+                com = self._obs(attempt, turns, spec, "compliance", COMPLIANCE_FRAMEWORKS, run, counters, inc, redact_recipe)
                 sec["pairedId"], com["pairedId"] = com["id"], sec["id"]
                 observations += [sec, com]
             else:
                 module = (spec.primary_pillar if spec else "compliance")
-                observations.append(self._obs(attempt, turns, spec, module, None, run, counters, None))
+                observations.append(self._obs(attempt, turns, spec, module, None, run, counters, None, redact_recipe))
 
         return {
             **self.run_summary(run),
@@ -172,9 +184,10 @@ class ConsoleView:
             "durationSec": None, "observations": observations,
         }
 
-    def _obs(self, attempt, turns, spec, module, fw, run, counters, incident) -> dict:
+    def _obs(self, attempt, turns, spec, module, fw, run, counters, incident, redact_recipe: bool = False) -> dict:
         counters[module] += 1
         code = "SEC" if module == "security" else "COM"
+        technique = (technique_category(attempt.technique_slug) if redact_recipe else attempt.technique_slug)
         return {
             "id": f"F-{code}-{counters[module]:02d}",
             "objectiveSlug": attempt.objective_slug, "objectiveId": attempt.objective_slug,
@@ -186,12 +199,12 @@ class ConsoleView:
             "detectorHits": _detector_hits(attempt.detector_hits),
             "crosswalk": _crosswalk(spec, fw), "bypass": _bypass(attempt.outcome, turns),
             "incidentId": incident, "pairedId": None,
-            "evidence": _evidence(turns, attempt.created_at), "numTurns": attempt.num_turns,
+            "evidence": _evidence(turns, attempt.created_at, redact_recipe), "numTurns": attempt.num_turns,
             "detectedIn": run.id, "reproduced": True,
-            "technique": attempt.technique_slug, "persona": attempt.persona_slug,
+            "technique": technique, "persona": attempt.persona_slug,
         }
 
-    def _fairness_obs(self, summary, samples, run, counters) -> dict:
+    def _fairness_obs(self, summary, samples, run, counters, redact_recipe: bool = False) -> dict:
         pv = (json.loads(summary.judge_votes or "[]") or [{}])[0]
         pair = summary.objective_id.split("/", 1)[1]
         spec = self.catalog.get(summary.objective_slug)
@@ -204,7 +217,7 @@ class ConsoleView:
             sa, st = s
             personas.append({
                 "label": f"Persona {grp} — {sa.persona_slug}", "attribute": pv.get("varied_attribute", ""),
-                "turns": _evidence(st, sa.created_at),
+                "turns": _evidence(st, sa.created_at, redact_recipe),
                 "note": ("treated worse" if pv.get("worse_group") == grp else "baseline treatment"),
             })
         return {
