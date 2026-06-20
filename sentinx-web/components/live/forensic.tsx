@@ -49,10 +49,10 @@ export default function Forensic({ run, play }: { run: RunView; play: PlayView }
         <div className="px-4 py-3">
           <div className="text-[22px] font-bold tracking-tight" style={{ color: tok.tone === "breached" ? "var(--fail)" : tok.tone === "held" ? "var(--pass)" : "var(--ink)" }}>{tok.label}</div>
           {v?.gateDelta?.disagree ? <div className="text-[12px] mt-1" style={{ color: "var(--fail-text)" }}>The agent believed it held. {jm.isOracle ? "The specialist judge disagrees." : "The judges disagree."}</div> : null}
-          <div className="text-[11.5px] mono text-ink-muted mt-1">{jm.isOracle ? "specialist oracle" : "panel"} · committed {v?.nCommitted}/{jm.configured}{jm.errored.length ? ` · ${jm.errored.length} unavailable` : ""} · self-report {v?.agentSelfReportedClean ? "clean" : "flagged"} · score {v?.score ?? "—"}</div>
+          <div className="text-[11.5px] mono text-ink-muted mt-1">{jm.isOracle ? "specialist oracle" : "panel"} · committed {v?.nCommitted}/{jm.configured}{jm.errored.length ? ` · ${jm.errored.length} unavailable` : ""} · self-report {v?.agentSelfReportedClean ? "clean" : "flagged"} · <span title="panel confidence the attack succeeded — 0 = clearly held, 1 = clearly breached">confidence {v?.score != null ? v.score.toFixed(2) : "—"}/1</span></div>
           <div className="mt-2 inline-flex gap-2 flex-wrap">
-            <button onClick={doRejudge} className="text-[11px] mono inline-flex items-center gap-1 bg-surface-sunk border border-border rounded-md px-2.5 py-1 hover:border-brand text-ink-muted"><RotateCcw size={12} />Re-judge{rejudge === "running" ? "…" : ""}</button>
-            <button onClick={() => setJudgeDiff(!judgeDiff)} className="text-[11px] mono inline-flex items-center gap-1 bg-surface-sunk border border-border rounded-md px-2.5 py-1 hover:border-brand text-ink-muted"><GitCompareArrows size={12} />Judge-diff</button>
+            <button onClick={doRejudge} className="text-[11px] mono inline-flex items-center gap-1 bg-surface-sunk border border-border rounded-md px-2.5 py-1 hover:border-ink-faint text-ink-muted"><RotateCcw size={12} />Re-judge{rejudge === "running" ? "…" : ""}</button>
+            <button onClick={() => setJudgeDiff(!judgeDiff)} className="text-[11px] mono inline-flex items-center gap-1 bg-surface-sunk border border-border rounded-md px-2.5 py-1 hover:border-ink-faint text-ink-muted"><GitCompareArrows size={12} />Judge-diff</button>
           </div>
           {rejudge === "unavailable" ? <div className="text-[10.5px] mono text-warn-text mt-1.5">Re-judge endpoint not available in this build — pending the engine port (D-LV-dep3). <span className="text-ink-faint">No stability result is asserted.</span></div> : null}
         </div>
@@ -65,7 +65,7 @@ export default function Forensic({ run, play }: { run: RunView; play: PlayView }
             {jm.votes.map((x, i) => (
               <div key={i} className="rounded-lg border border-border bg-surface-sunk px-3 py-2">
                 <div className="mono text-[11px] font-semibold inline-flex items-center gap-1 text-ink-muted">{x.committed ? <><ShieldOff size={11} className="text-ink" />committed</> : x.error ? <><AlertTriangle size={11} className="text-ink-faint" />unavailable</> : <><ShieldCheck size={11} className="text-ink-faint" />held</>}</div>
-                <div className="mono text-[10.5px] text-ink-muted mt-0.5" title={x.model}>{x.model?.replace(/^gemini:/, "")}{x.specificity != null ? ` · spec ${x.specificity}` : ""}</div>
+                <div className="mono text-[10.5px] text-ink-muted mt-0.5" title={x.model}>{x.model?.replace(/^gemini:/, "")}{x.specificity != null ? ` · specificity ${x.specificity}/1` : ""}</div>
                 {x.reason ? <div className="text-[11.5px] text-ink-muted mt-1.5 deva leading-snug">{x.reason}</div> : x.error ? <div className="text-[11px] mono text-warn-text mt-1">{x.error}</div> : null}
               </div>
             ))}
@@ -92,7 +92,7 @@ export default function Forensic({ run, play }: { run: RunView; play: PlayView }
               <div key={t.idx} className={pivot ? "rounded-md p-2 -m-2" : ""} style={pivot ? { background: "color-mix(in srgb,var(--fail) 7%,transparent)" } : undefined}>
                 <div className="text-[9.5px] uppercase tracking-wide text-ink-faint mb-1">[{t.phase}] {t.intent} {pivot ? <span style={{ color: "var(--fail-text)" }}>· classifier marked a commit here (advisory)</span> : null}</div>
                 <div className="text-[13px] rounded-lg px-3 py-1.5 ml-auto max-w-[88%] deva" style={{ background: "var(--brand-soft)", color: "var(--brand-strong)", borderBottomRightRadius: 3 }}><span className="text-[9px] uppercase tracking-wide text-ink-faint block">attacker</span>{t.attacker}</div>
-                <div className="text-[13px] rounded-lg px-3 py-1.5 mt-1 max-w-[88%] deva" style={{ background: "var(--surface-sunk)", border: "1px solid var(--border)", borderBottomLeftRadius: 3 }}><span className="text-[9px] uppercase tracking-wide text-ink-faint block">AARAV (target)</span>{t.agent}<span className="mono text-[9.5px] ml-2 px-1.5 py-0.5 rounded-[3px] border border-border align-middle">{t.label}</span></div>
+                <div className="text-[13px] rounded-lg px-3 py-1.5 mt-1 max-w-[88%] deva" style={{ background: "var(--surface-sunk)", border: "1px solid var(--border)", borderBottomLeftRadius: 3 }}><span className="text-[9px] uppercase tracking-wide text-ink-faint block">AARAV (target)</span>{t.agent}<span className="mono text-[9.5px] ml-2 px-1.5 py-0.5 rounded-[3px] border border-border align-middle" title={`advisory in-call classifier (not the ruling) — ${t.label === "Succeed" ? "attacker got the line" : t.label === "Refusal" ? "agent held" : t.label === "Comply" ? "agent complied" : "unclear"}`}>{t.label}</span></div>
               </div>
             );
           })}
@@ -128,7 +128,7 @@ export default function Forensic({ run, play }: { run: RunView; play: PlayView }
                 <div className="grid gap-1">
                   <div className="text-[10px] uppercase tracking-wide text-ink-faint">intel → attack</div>
                   {run.recon.links!.map((lk, i) => (
-                    <div key={i} className="text-[11.5px] text-ink-muted flex items-start gap-1.5"><CornerDownRight size={12} className="mt-0.5 text-metric shrink-0" /><span><b className="text-ink mono">{lk.intelCard}={String(lk.value)}</b> → seeded <span className="mono text-brand">{lk.drivesObjective}</span></span></div>
+                    <div key={i} className="text-[11.5px] text-ink-muted flex items-start gap-1.5"><CornerDownRight size={12} className="mt-0.5 text-metric shrink-0" /><span><b className="text-ink mono">{lk.intelCard}={String(lk.value)}</b> → seeded <span className="text-ink" title={lk.drivesObjective}>{humanize(lk.drivesObjective ?? "")}</span></span></div>
                   ))}
                 </div>
               ) : null}
@@ -143,7 +143,7 @@ export default function Forensic({ run, play }: { run: RunView; play: PlayView }
         <div className="mono text-[11px] text-ink-muted grid gap-1">
           <div>phase plan: {play.phasePlan.map((p) => p.name).join(" → ")}</div>
           <div>arc reached: {play.arc.map((a) => a.phase).join(" → ") || "—"} · arcComplete: <b className="text-ink">{String(play.arcComplete)}</b></div>
-          <div>beats (who-moved): {play.beats.length ? play.beats.map((b) => `${b.toPhase}=${b.trigger}`).join(" · ") : "—"}</div>
+          <div>beats (why each phase advanced): {play.beats.length ? play.beats.map((b) => `${b.toPhase}=${b.trigger}`).join(" · ") : "—"} <span className="text-ink-faint">(conceded = agent yielded · re-angled/timer = attacker re-framed)</span></div>
           <div>pivotTurn (advisory classifier): <b className="text-ink">{play.pivotTurn ?? "none"}</b> — the last in-call commit, NOT guaranteed the judge-quoted line</div>
           <div>label trend: <span className="text-ink">{play.turns.map((t) => t.label[0]).join("") || "—"}</span> <span className="text-ink-faint">(R refusal · S succeed · C comply · U unknown)</span></div>
         </div>

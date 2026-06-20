@@ -68,7 +68,7 @@ export interface PlayView {
   technique: string;
   persona: string;
   status: PlayStatus;
-  regulation?: { framework: string; control_id: string }[];
+  regulation?: { framework: string; control_id: string; control_title?: string }[];
   phasePlan: PhasePlanItem[];
   turns: TurnView[];
   arc: { phase: string; intent?: string; labels?: TurnLabel[]; turnIdxStart?: number; turnIdxEnd?: number }[];

@@ -76,6 +76,27 @@ Report: Check==committed reads inverted; fail-red/pass-green on a per-judge vote
 ### PX-10 · REFINE probe icon Crosshair→Search — `forensic.tsx` (~line 121): the recon-probe `<Crosshair>` reused the attacker-technique glyph → `<Search>`. Revert: Search→Crosshair.
 ### PX-11 · REFINE label-trend legend — `forensic.tsx` (~line 149). **Before:** `<div>label trend: {play.turns.map((t) => t.label[0]).join("")}</div>` → **After:** wraps the string + appends `(R refusal · S succeed · C comply · U unknown)`. Revert: paste the Before.
 
+## Lift-to-4 pass (refine-only, no deletions) — every element ≥4
+*(2026-06-21 directive: every element ≥4 by REFINING, not deleting; prior cuts untouched. Re-audit `wf_7b5ef25a-de3` found 15 still-<4 elements; all refined in place. Git diff of the lift-to-4 commit is the precise revert source — each is an in-place tweak, nothing removed.)*
+| # | Element (was <4) | Refine applied | File |
+|---|---|---|---|
+| L1 | scoreboard `gate-delta` token | + tooltip (plain-language meaning) + dashed underline | arena.tsx |
+| L2 | footer model list | strip `gemini:` prefix + space-join (matches the rest of the UI) | arena.tsx |
+| L3 | StripLegend missing cell kinds | added `yet to come (est.)` + `unknown` keys | arena.tsx |
+| L4 | recon intel→attack target (raw slug) | `humanize()` + raw slug on hover | arena.tsx |
+| L5 | recon profile ✓/✗ cards | + caption "observed during recon — intel, not a verdict" | arena.tsx |
+| L6 | regulation/compliance chips (brand pills) | de-brand → ink/border + `control_title` meaning on hover (type gained `control_title?`) | arena.tsx / runview.ts |
+| L7 | verdict `score` (raw float) | relabel → "confidence X.XX/1" + tooltip | forensic.tsx |
+| L8 | per-turn label chip | + polarity tooltip ("advisory classifier — agent held / attacker got the line") | forensic.tsx |
+| L9 | recon intel→attack target (V3) | `humanize()` + de-brand to ink + hover slug | forensic.tsx |
+| L10 | brand hover-borders on buttons/stepper | `hover:border-brand` → `hover:border-ink-faint` | forensic.tsx + forensic page |
+| L11 | judge `spec N` | relabel → "specificity N/1" | forensic.tsx |
+| L12 | engine-internals `beats` | relabel "why each phase advanced" + trigger legend | forensic.tsx |
+| L13 | intensity caption | plain sentence (drop mono, ink-muted) + clearer wording | intensity-dial.tsx |
+| L14 | intensity estimate line | ink-faint → ink-muted (legible) | intensity-dial.tsx |
+| L15 | /new roll-up vs dial (dup counts) | re-scoped roll-up to scope-only (dial owns the counts) | new/page.tsx |
+**Revert any item:** `git show <lift-to-4 commit>` → the diff hunk for that line is the exact restore.
+
 ### Deferred (V3, logged not done)
 - **Detector hits inline in the transcript** (scored 2, an ADD not a cut) — detectors live only in the Judge panel; surfacing them per-turn in the transcript is an enhancement, not clutter. Deferred.
 - The ~24 remaining 3–4★ refines in `pixel_report_v3.md` (mostly subjective polish) — left as the record; action case-by-case later.

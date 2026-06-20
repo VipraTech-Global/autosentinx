@@ -12,7 +12,7 @@ export function IntensityDial({ value, onChange }: { value: IntensityLevel; onCh
       <div className="flex items-center gap-1.5 mb-1.5 text-[12.5px] text-ink">
         <Gauge className="h-4 w-4 text-ink-muted" strokeWidth={1.5} />
         <span className="font-medium">Run intensity</span>
-        <span className="text-ink-faint text-[11px] mono">scales attacks · turns · breadth — judges fixed</span>
+        <span className="text-ink-muted text-[11px]">more attacks, deeper turns, wider technique mix — judging rigor stays fixed across levels</span>
       </div>
       <div role="radiogroup" aria-label="Run intensity" className="inline-flex w-full rounded-md border border-border overflow-hidden">
         {LEVELS.map((lv, i) => {
@@ -27,7 +27,7 @@ export function IntensityDial({ value, onChange }: { value: IntensityLevel; onCh
       </div>
       <div className="mt-1.5 flex items-baseline justify-between gap-3 text-[11.5px]">
         <span className="text-ink-muted">{cfg.blurb}</span>
-        <span className="mono text-ink-faint shrink-0 tnum" title="rough estimate — actual depends on target latency, early-stops, and judge time">{cfg.attacks === "all" ? "full catalog" : `${cfg.attacks} attacks`} · {cfg.turns} turns · est. {est.minutes}</span>
+        <span className="mono text-ink-muted shrink-0 tnum" title="rough estimate — actual depends on target latency, early-stops, and judge time">{cfg.attacks === "all" ? "full catalog" : `${cfg.attacks} attacks`} · {cfg.turns} turns · est. {est.minutes}</span>
       </div>
     </div>
   );

@@ -94,7 +94,7 @@ export default function RunConfigPage() {
               <IntensityDial value={intensity} onChange={setIntensity} />
 
               <div className="rounded-md bg-surface-sunk px-3 py-2 text-[12px] text-ink-muted">
-                Will run <span className="text-ink">Security + Compliance</span> · multi-turn Hinglish plays · <span className="text-ink tnum">{INTENSITY[intensity].attacks === "all" ? "full catalog" : `${INTENSITY[intensity].attacks} attacks`}</span> · up to {INTENSITY[intensity].turns} turns each, against the endpoint above.
+                Will run <span className="text-ink">Security + Compliance</span> · multi-turn Hinglish plays against the endpoint above. Coverage &amp; depth are set by the <span className="text-ink">{intensity}</span> intensity above.
               </div>
 
               <Button type="submit" className="w-full" disabled={phase === "checking" || !endpoint}>

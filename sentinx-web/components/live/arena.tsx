@@ -46,6 +46,8 @@ function StripLegend() {
       <span className="flex items-center gap-1"><Cell k="held" />held</span>
       <span className="flex items-center gap-1"><Cell k="wavered" />wavered</span>
       <span className="flex items-center gap-1"><Cell k="yielded" />gave the line</span>
+      <span className="flex items-center gap-1"><Cell k="pending" />yet to come (est.)</span>
+      <span className="flex items-center gap-1"><Cell k="unknown" />unknown</span>
     </div>
   );
 }
@@ -139,7 +141,8 @@ function CombatantHeader({ p }: { p: PlayView }) {
         <div className="text-[11px] text-ink-faint" title={p.id}>{humanize(p.id)} · {p.pillar}</div>
         <div className="flex gap-1.5 mt-1.5 flex-wrap items-center">
           <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-[3px] border" style={{ color: `var(--sev-${p.severity}-text)`, borderColor: `var(--sev-${p.severity})` }}><Sev s={p.severity} />{p.severity}</span>
-          {(p.regulation ?? []).map((r, i) => <span key={i} className="text-[10px] mono text-brand bg-brand-soft rounded-[3px] px-1.5 py-0.5">{r.framework} {r.control_id}</span>)}
+          {/* compliance metadata: ink (not brand — static, not interactive); human control_title on hover */}
+          {(p.regulation ?? []).map((r, i) => <span key={i} className="text-[10px] mono text-ink-muted border border-border rounded-[3px] px-1.5 py-0.5" title={r.control_title ? `${r.framework} ${r.control_id} — ${r.control_title}` : `${r.framework} ${r.control_id}`}>{r.framework} {r.control_id}</span>)}
         </div>
       </div>
       <div className="text-right pl-3 border-l-2" style={{ borderColor: "var(--border)" }}>
@@ -318,6 +321,7 @@ export default function Arena({ run, onDrillToV3 }: { run: RunView; onDrillToV3?
       <div className="rounded-xl border border-border bg-surface px-4 py-3 text-[12.5px] text-ink-muted mb-5">
         {recon?.profile ? (
           <>
+            <div className="text-[10px] mono text-ink-faint mb-2">observed during recon — intel, not a verdict</div>
             <div className="grid sm:grid-cols-3 gap-2.5">
               <div className="rounded-lg border border-border bg-surface-sunk px-3 py-2"><div className="text-[10px] uppercase tracking-wide text-ink-faint">Discloses it&apos;s AI?</div><div className="text-[15px] font-semibold mt-1 text-ink flex items-center gap-1">{recon.profile.disclosesAi === false ? <><X size={15} />NO</> : recon.profile.disclosesAi === true ? <><Check size={15} />YES</> : "unclear"}</div></div>
               <div className="rounded-lg border border-border bg-surface-sunk px-3 py-2"><div className="text-[10px] uppercase tracking-wide text-ink-faint">Stays in scope?</div><div className="text-[15px] font-semibold mt-1 text-ink flex items-center gap-1">{recon.profile.staysInScope ? <><Check size={15} />YES</> : <><X size={15} />NO</>}</div></div>
@@ -325,7 +329,7 @@ export default function Arena({ run, onDrillToV3 }: { run: RunView; onDrillToV3?
             </div>
             {/* the intel→attack thread: recon DROVE which plays ran, it isn't decoration (feedback #1) */}
             {(recon.links ?? []).map((lk, i) => (
-              <div key={i} className="mt-2.5 flex items-start gap-1.5 text-[11.5px]"><CornerDownRight size={13} className="mt-0.5 text-metric shrink-0" /><span className="text-ink-muted">intel · <b className="text-ink">{intelLabel(lk)}</b> → primed the <span className="mono text-brand">{lk.drivesObjective}</span> play</span></div>
+              <div key={i} className="mt-2.5 flex items-start gap-1.5 text-[11.5px]"><CornerDownRight size={13} className="mt-0.5 text-metric shrink-0" /><span className="text-ink-muted">intel · <b className="text-ink">{intelLabel(lk)}</b> → primed the <span className="text-brand" title={lk.drivesObjective}>{humanize(lk.drivesObjective ?? "")}</span> play</span></div>
             ))}
           </>
         ) : recon?.status === "skipped" || recon?.status === "error" ? (
@@ -339,7 +343,7 @@ export default function Arena({ run, onDrillToV3 }: { run: RunView; onDrillToV3?
         <span>assessed <b className="text-ink tnum">{run.summary.done}</b>/{run.summary.total}</span>
         {(() => { const held = Math.max(0, run.summary.done - run.summary.fails - run.summary.risks); return <span style={held > 0 ? { color: "var(--pass-text)" } : undefined} className={held > 0 ? "" : "text-ink-faint"}>{held} held</span>; })()}
         {run.summary.fails ? <span style={{ color: "var(--fail-text)" }}>{run.summary.fails} breached</span> : null}
-        {run.summary.bypasses ? <span style={{ color: "var(--warn-text)" }}>{run.summary.bypasses} gate-delta</span> : null}
+        {run.summary.bypasses ? <span style={{ color: "var(--warn-text)" }} className="border-b border-dashed border-warn-text/40 cursor-help" title="gate-delta = the agent's own gate self-reported clean, but the judge panel overturned it to BREACHED — a silent bypass the agent never caught">{run.summary.bypasses} gate-delta</span> : null}
         {blocked ? <span className="text-ink-faint">{blocked} blocked</span> : null}
         {errored ? <span className="text-ink-faint">{errored} not assessed</span> : null}
         {/* operational-risk note, NOT a verdict → ink + glyph only (DESIGN.md §2: colour reserved for severity/outcome) */}
@@ -364,7 +368,7 @@ export default function Arena({ run, onDrillToV3 }: { run: RunView; onDrillToV3?
       </div>
 
       <div className="text-[10.5px] mono text-ink-faint mt-6 leading-relaxed">
-        Attacker {run.engine.attacker} · classifier {run.engine.classifier} · judges {run.engine.judges} · maxTurns {run.engine.maxTurns}{run.intensity ? ` · intensity ${run.intensity}` : ""}<br />
+        Attacker {run.engine.attacker?.replace(/^gemini:/, "")} · classifier {run.engine.classifier?.replace(/^gemini:/, "")} · judges {(run.engine.judges ?? "").split(",").map((j) => j.replace(/^gemini:/, "").trim()).filter(Boolean).join(", ")} · maxTurns {run.engine.maxTurns}{run.intensity ? ` · intensity ${run.intensity}` : ""}<br />
         <span className="text-brand">BLACK-BOX</span> = judged only from the agent&apos;s spoken words. <span style={{ color: "var(--metric)" }}>SANDBOX</span> = the target&apos;s own self-reported gate / advisory classifier. · {run.status === "done" ? "run complete" : "streaming live"} · Arena (View 2) — internal
       </div>
     </div>
