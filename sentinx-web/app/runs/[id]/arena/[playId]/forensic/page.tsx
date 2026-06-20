@@ -4,6 +4,7 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Forensic from "@/components/live/forensic";
 import { fromStateJson, humanize, type RunView } from "@/lib/runview";
+import { getRunView } from "@/lib/api";
 import { RunNav } from "@/components/live/run-nav";
 import { getRole, canSeeLive, screenHref, type Role } from "@/lib/role";
 
@@ -14,17 +15,31 @@ export default function ForensicPage() {
   const data = search.get("data") ?? "live-8play";
   const playIdx = Number(params?.playId ?? 0);
   const runId = String(params?.id ?? "ER-LIVE");
+  const isEngine = data === "engine";   // real server-side RunView (Wave 2); else a fixture
   const [run, setRun] = useState<RunView | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     let on = true;
-    fetch(`/runs/${data}.json`, { cache: "no-store" })
-      .then((r) => { if (!r.ok) throw new Error(`load ${data} failed`); return r.json(); })
-      .then((raw) => { if (on) setRun(fromStateJson(raw, runId)); })
-      .catch((e) => on && setErr(String(e)));
-    return () => { on = false; };
-  }, [data, runId]);
+    let iv: ReturnType<typeof setInterval> | undefined;
+    const loadOne = (): Promise<RunView> =>
+      isEngine
+        ? getRunView(runId)
+        : fetch(`/runs/${data}.json`, { cache: "no-store" })
+            .then((r) => { if (!r.ok) throw new Error(`load ${data} failed`); return r.json(); })
+            .then((raw) => fromStateJson(raw, runId));
+    const load = () => loadOne()
+      .then((rv) => {
+        if (!on) return;
+        setRun(rv); setErr(null);
+        const terminal = rv.status === "done" || rv.status === "failed" || rv.status === "blocked";
+        if (isEngine && terminal && iv) { clearInterval(iv); iv = undefined; }   // engine keeps polling until terminal
+      })
+      .catch((e) => { if (!on) return; if (isEngine && /401|unauthor/i.test(String(e))) setErr("Log in to view the live run."); else if (!isEngine) setErr(String(e)); });
+    load();
+    if (isEngine) iv = setInterval(load, 2500);
+    return () => { on = false; if (iv) clearInterval(iv); };
+  }, [data, runId, isEngine]);
 
   // access gate: V3 Forensic restricted to Admin/QA + Security (in-place notice, no redirect)
   const [role, setRoleState] = useState<Role | null>(null);

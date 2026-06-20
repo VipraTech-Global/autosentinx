@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import Arena from "@/components/live/arena";
 import { fromStateJson, type RunView } from "@/lib/runview";
+import { getRunView } from "@/lib/api";
 import { RunNav } from "@/components/live/run-nav";
 import { getRole, canSeeLive, screenHref, type Role } from "@/lib/role";
 
@@ -13,7 +14,9 @@ export default function ArenaPage() {
   const search = useSearchParams();
   const router = useRouter();
   const data = search.get("data") ?? "live-8play";
-  const livePoll = search.get("live") === "1";   // ?live=1 → poll the source as a run streams in (D-Q15 cadence)
+  const runId = String(params?.id ?? "ER-LIVE");
+  const isEngine = data === "engine";              // real server-side RunView (Wave 2); else a fixture / dev-bridge
+  const livePoll = isEngine || search.get("live") === "1"; // poll the source as the run streams (D-Q15 2500ms)
   const [run, setRun] = useState<RunView | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -21,26 +24,34 @@ export default function ArenaPage() {
     let active = true;
     let iv: ReturnType<typeof setInterval> | undefined;
     setRun(null); setErr(null);
+    // engine source → getRunView(id); else fixture/dev-bridge → fetch + fromStateJson (R1-B2: one shared adapter)
+    const loadOne = (): Promise<RunView> =>
+      isEngine
+        ? getRunView(runId)
+        : fetch(`/runs/${data}.json`, { cache: "no-store" })
+            .then((r) => { if (!r.ok) throw new Error(`load ${data} failed`); return r.json(); })
+            .then((raw) => fromStateJson(raw, runId));
     const load = () =>
-      fetch(`/runs/${data}.json`, { cache: "no-store" })
-        .then((r) => { if (!r.ok) throw new Error(`load ${data} failed`); return r.json(); })
-        .then((raw) => {
+      loadOne()
+        .then((rv) => {
           if (!active) return;
-          const rv = fromStateJson(raw, String(params?.id ?? "ER-LIVE"));
           setRun(rv); setErr(null);
           const terminal = rv.status === "done" || rv.status === "failed" || rv.status === "blocked";
           if (livePoll && terminal && iv) { clearInterval(iv); iv = undefined; }
         })
-        .catch((e) => { if (active && !livePoll) setErr(String(e)); }); // transient miss mid-stream is fine
+        .catch((e) => {
+          if (!active) return;
+          if (isEngine && /401|unauthor/i.test(String(e))) setErr("Log in to view the live run.");
+          else if (!livePoll) setErr(String(e));   // transient poll miss mid-stream is fine
+        });
     load();
     if (livePoll) iv = setInterval(load, 2500);
     return () => { active = false; if (iv) clearInterval(iv); };
-  }, [data, params?.id, livePoll]);
+  }, [data, runId, livePoll, isEngine]);
 
   // access gate: V2/V3 restricted to Admin/QA + Security (role read client-side; null until mounted)
   const [role, setRoleState] = useState<Role | null>(null);
   useEffect(() => setRoleState(getRole()), []);
-  const runId = String(params?.id ?? "ER-LIVE");
   const restricted = role !== null && !canSeeLive(role);
 
   return (
@@ -66,7 +77,8 @@ export default function ArenaPage() {
             ? <span className="mono text-[11px] text-ink-faint inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-ink-faint" />run complete</span>
             : <span className="mono text-[11px] inline-flex items-center gap-1.5" style={{ color: "var(--fail-text)" }}><span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--fail)" }} />LIVE</span>
         ) : null}
-        {livePoll ? <span className="mono text-[10px] uppercase tracking-wide text-warn-text border border-warn-text/40 rounded px-1.5 py-0.5" title="Dev bridge: the engine run is real, but login + scan are mocked and the ROE-approval gate is skipped. Previews the parked engine port (D-LV26).">dev bridge</span> : null}
+        {livePoll && !isEngine ? <span className="mono text-[10px] uppercase tracking-wide text-warn-text border border-warn-text/40 rounded px-1.5 py-0.5" title="Dev bridge: the engine run is real, but login + scan are mocked and the ROE-approval gate is skipped. Previews the parked engine port (D-LV26).">dev bridge</span> : null}
+        {isEngine ? <span className="mono text-[10px] uppercase tracking-wide text-ink-faint border border-border rounded px-1.5 py-0.5" title="Live from the engine — GET /console/runs/{id}/runview (D-LV-dep3)">engine</span> : null}
         <span className="flex-1" />
         {/* zoom: Arena(V2) · Detail(V3) — Glance(V1) removed until V1 ships (PX-1, D-LV23) */}
         <span className="inline-flex border border-border rounded-md overflow-hidden text-[11px] mono">

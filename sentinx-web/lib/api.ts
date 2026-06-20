@@ -77,7 +77,10 @@ export async function getRun(runId: string): Promise<Run> {
 // path uses (R1-B2), so fixtures + live share one shape. NOT withOutcomes (productOutcome is
 // engine-derived server-side, EP-5 — must not be re-derived FE-side).
 export async function getRunView(runId: string): Promise<RunView> {
-  const r = await req(`/api/console/runs/${runId}/runview`);
+  // fetch directly (not via req) so the live load-effect can distinguish a 401 → "log in" prompt
+  const r = await fetch(`/api/console/runs/${runId}/runview`, { cache: "no-store" });
+  if (r.status === 401) throw new Error("401 unauthorized — log in to view the live run");
+  if (!r.ok) throw new Error(`runview ${r.status}`);
   return fromStateJson(await r.json(), runId);
 }
 
