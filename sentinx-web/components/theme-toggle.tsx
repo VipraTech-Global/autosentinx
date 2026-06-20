@@ -15,7 +15,9 @@ export function ThemeToggle({ className }: { className?: string }) {
     <button
       type="button"
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      aria-label={isDark ? "Switch to light theme" : "Switch to dark console theme"}
+      // resolvedTheme is unknown on the server → gate the themed label on `mounted` (like the icon)
+      // so SSR and first client render agree; specific label appears once mounted. (hydration-safe)
+      aria-label={mounted ? (isDark ? "Switch to light theme" : "Switch to dark console theme") : "Toggle theme"}
       className={cn(
         "inline-flex h-11 w-11 items-center justify-center rounded-sm border border-border text-ink-muted hover:text-ink hover:border-brand/40 transition-colors",
         className,
