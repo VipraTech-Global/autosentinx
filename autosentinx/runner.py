@@ -74,6 +74,15 @@ class Runner:
             return await self.misselling_oracle.judge(spec, turns)
         return await self.panel.judge(spec, turns)
 
+    async def _anchor(self, run_id: str) -> None:
+        """Witness the tamper-evident audit chain head to the external store at campaign end
+        (P1 external anchoring, decision 19). Best-effort — anchoring never fails the campaign."""
+        try:
+            from .anchor import anchor_head
+            await anchor_head()
+        except Exception:  # noqa: BLE001
+            log.warning("external anchor failed for run %s", run_id)
+
     def _contact_for(self, i: int) -> int:
         """Rotate borrowers to dodge per-contact daily-attempt limits."""
         return self.s.aarav_contact_start + (i % max(1, self.s.aarav_contact_count))
@@ -146,6 +155,7 @@ class Runner:
                 done += 1
                 await self.store.set_run_status(run_id, "running", done, succeeded)
             await self.store.set_run_status(run_id, "completed", done, succeeded)
+            await self._anchor(run_id)
         except Exception:  # noqa: BLE001
             log.exception("campaign %s failed", run_id)
             await self.store.set_run_status(run_id, "failed", done, succeeded)
@@ -222,6 +232,7 @@ class Runner:
                 done += 1
                 await self.store.set_run_status(run_id, "running", done, succeeded)
             await self.store.set_run_status(run_id, "completed", done, succeeded)
+            await self._anchor(run_id)
         except Exception:  # noqa: BLE001
             log.exception("budget campaign %s failed", run_id)
             await self.store.set_run_status(run_id, "failed", done, succeeded)
@@ -281,6 +292,7 @@ class Runner:
                         disparate += 1
                     await self.store.set_run_status(run_id, "running", done, disparate)
             await self.store.set_run_status(run_id, "completed", done, disparate)
+            await self._anchor(run_id)
         except Exception:  # noqa: BLE001
             log.exception("fairness campaign %s failed", run_id)
             await self.store.set_run_status(run_id, "failed", done, disparate)
