@@ -65,15 +65,15 @@ export default function ForensicPage() {
           </select>
           <button disabled={!next} onClick={() => next && router.push(forensicHref(next.idx))} className="px-1.5 py-1 rounded-md border border-border text-ink-muted hover:border-brand disabled:opacity-40 disabled:hover:border-border" title={next ? `next · ${next.id}` : "last play"} aria-label="next play"><ChevronRight size={14} /></button>
         </span>
+        {/* zoom: Arena(V2) · Forensic(V3) — Glance(V1) removed until V1 ships (PX-5); active pill severity-neutral */}
         <span className="inline-flex border border-border rounded-md overflow-hidden text-[11px] mono">
-          <span className="px-2.5 py-1 text-ink-faint cursor-not-allowed" title="V1 Glance — coming soon">Glance</span>
-          <button className="px-2.5 py-1 text-ink-muted border-l border-border hover:bg-surface-sunk" onClick={backToArena}>Arena</button>
-          <span className="px-2.5 py-1 bg-brand-soft text-brand border-l border-border">Forensic</span>
+          <button className="px-2.5 py-1 text-ink-muted hover:bg-surface-sunk" onClick={backToArena}>Arena</button>
+          <span className="px-2.5 py-1 bg-surface-sunk text-ink font-medium border-l border-border">Forensic</span>
         </span>
       </div>
       {err ? <div className="max-w-[700px] mx-auto mt-20 text-center mono text-fail-text">{err}</div> : null}
       {run && !play ? <div className="max-w-[700px] mx-auto mt-20 text-center mono text-ink-faint">play {playIdx} not found</div> : null}
-      {run && play ? <Forensic run={run} play={play} onRollUp={backToArena} /> : (!err ? <div className="max-w-[700px] mx-auto mt-20 text-center mono text-ink-faint">loading…</div> : null)}
+      {run && play ? <Forensic run={run} play={play} /> : (!err ? <div className="max-w-[700px] mx-auto mt-20 text-center mono text-ink-faint">loading…</div> : null)}
       </>
       )}
     </div>

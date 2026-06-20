@@ -43,3 +43,39 @@ Report: a `0 held` still wears pass-green; mute zero counts (green should mean "
 - **Processing ↗** (scored 2) — **KEPT**: you explicitly asked for V2↔C4 nav; it's a useful door, not clutter (`OPEN-LV1`). Reconsider when OPEN-LV1 resolves.
 - **Floating "N" avatar** (scored 2) — **NO-OP**: that's the **Next.js dev-mode indicator**, not our UI; it does not render in a production build. Nothing to change.
 - **Stale "SENTIN X" wordmark / plain-circle logo** (flagged) — **NOT a code issue**: the code already renders the real `<Logo>` (RadarMark + "AutoSentinX"); only the *light capture* `nav_arena_admin.png` was stale. Action = recapture (below), no code change.
+
+## V3 (Forensic) — pass 1
+*(From `pixel_report_v3.md` — workflow `wf_9406c5b7-698`, 97 elements, mean 3.93.)*
+
+### PX-5 · CUT "Glance" + DE-BRAND the active "Forensic" pill — `app/runs/[id]/arena/[playId]/forensic/page.tsx` (~line 68)
+**Before:**
+```tsx
+        <span className="inline-flex border border-border rounded-md overflow-hidden text-[11px] mono">
+          <span className="px-2.5 py-1 text-ink-faint cursor-not-allowed" title="V1 Glance — coming soon">Glance</span>
+          <button className="px-2.5 py-1 text-ink-muted border-l border-border hover:bg-surface-sunk" onClick={backToArena}>Arena</button>
+          <span className="px-2.5 py-1 bg-brand-soft text-brand border-l border-border">Forensic</span>
+        </span>
+```
+**After:** Glance removed; Forensic pill → neutral `bg-surface-sunk text-ink font-medium`. **Revert:** paste the Before.
+
+### PX-6 · CUT the redundant in-body "↑ roll up to Arena" — `components/live/forensic.tsx` (~line 35) + its `onRollUp` prop
+3 back-to-Arena paths existed (zoom segment, this, role nav). Kept the zoom segment as the single up-control.
+**Before (removed line):** `      <button onClick={onRollUp} className="text-[11px] mono text-brand inline-flex items-center gap-1 mb-3 hover:underline"><ArrowUp size={13} /> roll up to Arena</button>`
+Also: signature `Forensic({ run, play, onRollUp }: { …; onRollUp: () => void })` → `Forensic({ run, play }: { … })`; import dropped `ArrowUp`; page call dropped `onRollUp={backToArena}`. **Revert:** restore the button + the `onRollUp` prop/import/page-arg.
+
+### PX-7 · REFINE judge-vote glyph + colour (de-invert + de-colour) — `components/live/forensic.tsx` (~lines 68 & 78)
+Report: Check==committed reads inverted; fail-red/pass-green on a per-judge vote breaks severity-only-colour.
+**Before (both spots):** `… style={{ color: x.committed ? "var(--fail-text)" : x.error ? "var(--warn-text)" : "var(--pass-text)" }}>{x.committed ? <><Check size={11} />committed</> : x.error ? <><AlertTriangle size={11} />unavailable</> : <><Shield size={11} />held</>}`
+**After:** ink-only; `ShieldOff` (committed) / `ShieldCheck` (held) / `AlertTriangle` (unavailable) — no colour, no inverted check. (Import swapped `Shield,Check` → `ShieldOff,ShieldCheck`.) **Revert:** restore the `style` colour + `Check`/`Shield` glyphs + the import.
+
+### PX-8 · REFINE severity → a chip — `components/live/forensic.tsx` (~line 42)
+**Before:** `            <div className="text-[11px] text-ink-faint" title={play.id}>{humanize(play.id)} · {play.pillar} · severity {play.severity}</div>`
+**After:** adds a severity-coloured chip (severity colour is allowed) matching V2's focal header. **Revert:** paste the Before.
+
+### PX-9 · REFINE model-name width 140→180 + title tooltip — `forensic.tsx` (~line 79). **Before:** `w-[140px] truncate">{x.model?.replace(…)}` → **After:** `w-[180px] truncate" title={x.model}>`. Revert: 180→140, drop title.
+### PX-10 · REFINE probe icon Crosshair→Search — `forensic.tsx` (~line 121): the recon-probe `<Crosshair>` reused the attacker-technique glyph → `<Search>`. Revert: Search→Crosshair.
+### PX-11 · REFINE label-trend legend — `forensic.tsx` (~line 149). **Before:** `<div>label trend: {play.turns.map((t) => t.label[0]).join("")}</div>` → **After:** wraps the string + appends `(R refusal · S succeed · C comply · U unknown)`. Revert: paste the Before.
+
+### Deferred (V3, logged not done)
+- **Detector hits inline in the transcript** (scored 2, an ADD not a cut) — detectors live only in the Judge panel; surfacing them per-turn in the transcript is an enhancement, not clutter. Deferred.
+- The ~24 remaining 3–4★ refines in `pixel_report_v3.md` (mostly subjective polish) — left as the record; action case-by-case later.

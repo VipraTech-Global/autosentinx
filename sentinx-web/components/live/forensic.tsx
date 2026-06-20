@@ -2,7 +2,7 @@
 // V3 FORENSIC — the V2 play "fully expanded" (D-LV22). Internal-unrestricted: full chain,
 // model-named judges, detectors, recon, provenance, debug internals + Re-judge / Judge-diff.
 import { useState } from "react";
-import { ArrowUp, Crosshair, CornerDownRight, Shield, Scale, RotateCcw, GitCompareArrows, Radar, Bug, FileText, Check, AlertTriangle } from "lucide-react";
+import { Crosshair, CornerDownRight, ShieldOff, ShieldCheck, Scale, RotateCcw, GitCompareArrows, Radar, Bug, FileText, Search, AlertTriangle } from "lucide-react";
 import { type RunView, type PlayView, judgeMeta, outcomeToken, humanize } from "@/lib/runview";
 
 const labelTri = (v?: boolean) => (v === true ? "YES" : v === false ? "NO" : "unclear");
@@ -16,7 +16,7 @@ function Section({ title, icon, children, note }: { title: string; icon?: React.
   );
 }
 
-export default function Forensic({ run, play, onRollUp }: { run: RunView; play: PlayView; onRollUp: () => void }) {
+export default function Forensic({ run, play }: { run: RunView; play: PlayView }) {
   const v = play.verdict;
   const jm = judgeMeta(v, run.engine.judges);
   const tok = outcomeToken(v?.productOutcome);
@@ -32,14 +32,13 @@ export default function Forensic({ run, play, onRollUp }: { run: RunView; play: 
 
   return (
     <div className="max-w-[1000px] mx-auto px-5 py-4">
-      <button onClick={onRollUp} className="text-[11px] mono text-brand inline-flex items-center gap-1 mb-3 hover:underline"><ArrowUp size={13} /> roll up to Arena</button>
-
+      {/* PX-6: in-body 'roll up to Arena' removed — the sub-bar zoom 'Arena' segment is the single up-path */}
       {/* matchup + verdict */}
       <div className="rounded-xl border border-border bg-surface overflow-hidden mb-5">
         <div className="flex items-start gap-3 flex-wrap px-4 py-3 border-b border-border">
           <div className="flex-1 min-w-[220px]">
             <div className="font-semibold text-[16px] text-ink">{play.title}</div>
-            <div className="text-[11px] text-ink-faint" title={play.id}>{humanize(play.id)} · {play.pillar} · severity {play.severity}</div>
+            <div className="text-[11px] text-ink-faint flex items-center gap-1.5 flex-wrap" title={play.id}><span>{humanize(play.id)} · {play.pillar}</span><span className="inline-flex items-center text-[9.5px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-[3px] border" style={{ color: `var(--sev-${play.severity}-text)`, borderColor: `var(--sev-${play.severity})` }}>{play.severity}</span></div>
           </div>
           <div className="text-right pl-3 border-l border-border">
             <div className="text-[9.5px] uppercase tracking-wide text-ink-faint">attacker</div>
@@ -65,8 +64,8 @@ export default function Forensic({ run, play, onRollUp }: { run: RunView; play: 
           <div className="grid sm:grid-cols-3 gap-2.5">
             {jm.votes.map((x, i) => (
               <div key={i} className="rounded-lg border border-border bg-surface-sunk px-3 py-2">
-                <div className="mono text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: x.committed ? "var(--fail-text)" : x.error ? "var(--warn-text)" : "var(--pass-text)" }}>{x.committed ? <><Check size={11} />committed</> : x.error ? <><AlertTriangle size={11} />unavailable</> : <><Shield size={11} />held</>}</div>
-                <div className="mono text-[10.5px] text-ink-muted mt-0.5">{x.model?.replace(/^gemini:/, "")}{x.specificity != null ? ` · spec ${x.specificity}` : ""}</div>
+                <div className="mono text-[11px] font-semibold inline-flex items-center gap-1 text-ink-muted">{x.committed ? <><ShieldOff size={11} className="text-ink" />committed</> : x.error ? <><AlertTriangle size={11} className="text-ink-faint" />unavailable</> : <><ShieldCheck size={11} className="text-ink-faint" />held</>}</div>
+                <div className="mono text-[10.5px] text-ink-muted mt-0.5" title={x.model}>{x.model?.replace(/^gemini:/, "")}{x.specificity != null ? ` · spec ${x.specificity}` : ""}</div>
                 {x.reason ? <div className="text-[11.5px] text-ink-muted mt-1.5 deva leading-snug">{x.reason}</div> : x.error ? <div className="text-[11px] mono text-warn-text mt-1">{x.error}</div> : null}
               </div>
             ))}
@@ -75,8 +74,8 @@ export default function Forensic({ run, play, onRollUp }: { run: RunView; play: 
           <div className="grid gap-2">
             {jm.votes.map((x, i) => (
               <div key={i} className="flex items-start gap-2 text-[12px]">
-                <span className="mono text-[11px] shrink-0 w-[120px] inline-flex items-center gap-1" style={{ color: x.committed ? "var(--fail-text)" : x.error ? "var(--warn-text)" : "var(--pass-text)" }}>{x.committed ? <><Check size={11} />committed</> : x.error ? <><AlertTriangle size={11} />unavailable</> : <><Shield size={11} />held</>}</span>
-                <span className="mono text-[11px] text-ink-faint shrink-0 w-[140px] truncate">{x.model?.replace(/^gemini:/, "")}</span>
+                <span className="mono text-[11px] shrink-0 w-[120px] inline-flex items-center gap-1 text-ink-muted">{x.committed ? <><ShieldOff size={11} className="text-ink" />committed</> : x.error ? <><AlertTriangle size={11} className="text-ink-faint" />unavailable</> : <><ShieldCheck size={11} className="text-ink-faint" />held</>}</span>
+                <span className="mono text-[11px] text-ink-faint shrink-0 w-[180px] truncate" title={x.model}>{x.model?.replace(/^gemini:/, "")}</span>
                 <span className="text-ink-muted deva">{x.reason ?? x.error ?? "—"}</span>
               </div>
             ))}
@@ -118,7 +117,7 @@ export default function Forensic({ run, play, onRollUp }: { run: RunView; play: 
                   <div className="text-[10px] uppercase tracking-wide text-ink-faint">probes ({run.recon.steps.length})</div>
                   {run.recon.steps.map((s, i) => (
                     <div key={i} className="rounded-md border border-border bg-surface-sunk px-2.5 py-1.5">
-                      <div className="text-[11.5px] text-ink flex items-start gap-1.5"><Crosshair size={12} className="mt-0.5 text-ink-faint shrink-0" /><span className="flex-1">{s.probe}</span>{s.note ? <span className="mono text-[9px] text-ink-faint shrink-0 uppercase tracking-wide">{s.note}</span> : null}</div>
+                      <div className="text-[11.5px] text-ink flex items-start gap-1.5"><Search size={12} className="mt-0.5 text-ink-faint shrink-0" /><span className="flex-1">{s.probe}</span>{s.note ? <span className="mono text-[9px] text-ink-faint shrink-0 uppercase tracking-wide">{s.note}</span> : null}</div>
                       {s.reply ? <div className="mt-1 text-[11.5px] text-ink-muted pl-[18px]">{s.reply}</div> : null}
                     </div>
                   ))}
@@ -146,7 +145,7 @@ export default function Forensic({ run, play, onRollUp }: { run: RunView; play: 
           <div>arc reached: {play.arc.map((a) => a.phase).join(" → ") || "—"} · arcComplete: <b className="text-ink">{String(play.arcComplete)}</b></div>
           <div>beats (who-moved): {play.beats.length ? play.beats.map((b) => `${b.toPhase}=${b.trigger}`).join(" · ") : "—"}</div>
           <div>pivotTurn (advisory classifier): <b className="text-ink">{play.pivotTurn ?? "none"}</b> — the last in-call commit, NOT guaranteed the judge-quoted line</div>
-          <div>label trend: {play.turns.map((t) => t.label[0]).join("")}</div>
+          <div>label trend: <span className="text-ink">{play.turns.map((t) => t.label[0]).join("") || "—"}</span> <span className="text-ink-faint">(R refusal · S succeed · C comply · U unknown)</span></div>
         </div>
       </Section>
 
