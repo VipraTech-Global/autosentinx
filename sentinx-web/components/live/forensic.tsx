@@ -2,8 +2,10 @@
 // V3 FORENSIC — the V2 play "fully expanded" (D-LV22). Internal-unrestricted: full chain,
 // model-named judges, detectors, recon, provenance, debug internals + Re-judge / Judge-diff.
 import { useState } from "react";
-import { ArrowUp, Crosshair, Shield, Scale, RotateCcw, GitCompareArrows, Radar, Bug, FileText, Check, AlertTriangle } from "lucide-react";
+import { ArrowUp, Crosshair, CornerDownRight, Shield, Scale, RotateCcw, GitCompareArrows, Radar, Bug, FileText, Check, AlertTriangle } from "lucide-react";
 import { type RunView, type PlayView, judgeMeta, outcomeToken } from "@/lib/runview";
+
+const labelTri = (v?: boolean) => (v === true ? "YES" : v === false ? "NO" : "unclear");
 
 function Section({ title, icon, children, note }: { title: string; icon?: React.ReactNode; children: React.ReactNode; note?: string }) {
   return (
@@ -99,15 +101,41 @@ export default function Forensic({ run, play, onRollUp }: { run: RunView; play: 
         </div>
       </Section>
 
-      {/* RECON */}
+      {/* RECON — the full scouting interrogation (D-LV22: 'full recon profile') */}
       {run.recon ? (
-        <Section title="Recon profile" icon={<Radar size={13} />}>
+        <Section title="Recon — scouting interrogation" icon={<Radar size={13} />} note={run.recon.contact ? `contact · ${run.recon.contact}` : undefined}>
           {run.recon.profile ? (
-            <div className="mono text-[11.5px] text-ink-muted grid gap-1">
-              <div>discloses AI: <b className="text-ink">{String(run.recon.profile.disclosesAi)}</b> · stays in scope: <b className="text-ink">{String(run.recon.profile.staysInScope)}</b></div>
-              <div>refusal style: {run.recon.profile.refusalStyle}</div>
+            <div className="grid gap-3">
+              {/* derived baseline signals */}
+              <div className="mono text-[11.5px] text-ink-muted flex flex-wrap gap-x-5 gap-y-1">
+                <span>discloses AI: <b className="text-ink">{labelTri(run.recon.profile.disclosesAi)}</b></span>
+                <span>stays in scope: <b className="text-ink">{labelTri(run.recon.profile.staysInScope)}</b></span>
+                {run.recon.profile.refusalStyle ? <span>refusal style: <b className="text-ink">{run.recon.profile.refusalStyle}</b></span> : null}
+              </div>
+              {/* probe-by-probe transcript: exactly what was asked + the agent's verbatim reply */}
+              {run.recon.steps?.length ? (
+                <div className="grid gap-1.5">
+                  <div className="text-[10px] uppercase tracking-wide text-ink-faint">probes ({run.recon.steps.length})</div>
+                  {run.recon.steps.map((s, i) => (
+                    <div key={i} className="rounded-md border border-border bg-surface-sunk px-2.5 py-1.5">
+                      <div className="text-[11.5px] text-ink flex items-start gap-1.5"><Crosshair size={12} className="mt-0.5 text-ink-faint shrink-0" /><span className="flex-1">{s.probe}</span>{s.note ? <span className="mono text-[9px] text-ink-faint shrink-0 uppercase tracking-wide">{s.note}</span> : null}</div>
+                      {s.reply ? <div className="mt-1 text-[11.5px] text-ink-muted pl-[18px]">{s.reply}</div> : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {/* intel → attack derivation: how recon seeded the campaign */}
+              {(run.recon.links ?? []).length ? (
+                <div className="grid gap-1">
+                  <div className="text-[10px] uppercase tracking-wide text-ink-faint">intel → attack</div>
+                  {run.recon.links!.map((lk, i) => (
+                    <div key={i} className="text-[11.5px] text-ink-muted flex items-start gap-1.5"><CornerDownRight size={12} className="mt-0.5 text-metric shrink-0" /><span><b className="text-ink mono">{lk.intelCard}={String(lk.value)}</b> → seeded <span className="mono text-brand">{lk.drivesObjective}</span></span></div>
+                  ))}
+                </div>
+              ) : null}
+              {run.recon.profile.notes?.length ? <div className="mono text-[10.5px] text-ink-faint">{run.recon.profile.notes.join(" · ")}</div> : null}
             </div>
-          ) : <div className="mono text-[11.5px] text-warn-text">recon {run.recon.status} — {run.recon.reason ?? "no profile"}</div>}
+          ) : <div className="mono text-[11.5px] text-warn-text">recon {run.recon.status} — {run.recon.reason ?? "no profile retained"}{run.recon.contact ? ` · last contact ${run.recon.contact}` : ""}</div>}
         </Section>
       ) : null}
 

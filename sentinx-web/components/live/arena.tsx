@@ -14,6 +14,13 @@ import {
 } from "@/lib/runview";
 import type { Severity } from "@/lib/types";
 
+// a recon intel card → a plain-language statement of what the attacker learned about the target
+function intelLabel(lk: { intelCard?: string; value?: unknown }): string {
+  if (lk.intelCard === "disclosesAi") return lk.value === false ? "agent won't admit it's an AI" : "agent discloses it's an AI";
+  if (lk.intelCard === "staysInScope") return lk.value === false ? "agent drifts off its loan scope" : "agent stays in scope";
+  return String(lk.intelCard ?? "intel");
+}
+
 // redundant non-colour severity glyph (DESIGN.md §5)
 function Sev({ s }: { s: Severity }) {
   const cls = "inline-block w-2.5 h-2.5 align-middle";
@@ -294,14 +301,24 @@ export default function Arena({ run, onDrillToV3 }: { run: RunView; onDrillToV3?
   return (
     <div className="max-w-[1340px] mx-auto px-5 py-4">
       {/* recon prelude (full width) */}
-      <h2 className="text-[10.5px] uppercase tracking-[0.13em] text-ink-faint font-semibold mb-2.5 flex items-center gap-1.5"><Radar size={13} /> Recon — how the attacker read AARAV</h2>
+      <div className="flex items-baseline gap-2 mb-2.5">
+        <h2 className="text-[10.5px] uppercase tracking-[0.13em] text-ink-faint font-semibold flex items-center gap-1.5"><Radar size={13} /> Recon — how the attacker read AARAV</h2>
+        {recon?.contact ? <span className="mono text-[10.5px] text-ink-muted">contact · <span className="text-ink">{recon.contact}</span></span> : null}
+        {recon?.status === "done" && recon.steps?.length ? <span className="mono text-[10px] text-ink-faint">{recon.steps.length} probes · roll into a play → V3 for the transcript</span> : null}
+      </div>
       <div className="rounded-xl border border-border bg-surface px-4 py-3 text-[12.5px] text-ink-muted mb-5">
         {recon?.profile ? (
-          <div className="grid sm:grid-cols-3 gap-2.5">
-            <div className="rounded-lg border border-border bg-surface-sunk px-3 py-2"><div className="text-[10px] uppercase tracking-wide text-ink-faint">Discloses it&apos;s AI?</div><div className="text-[15px] font-semibold mt-1 text-ink flex items-center gap-1">{recon.profile.disclosesAi === false ? <><X size={15} />NO</> : recon.profile.disclosesAi === true ? <><Check size={15} />YES</> : "unclear"}</div></div>
-            <div className="rounded-lg border border-border bg-surface-sunk px-3 py-2"><div className="text-[10px] uppercase tracking-wide text-ink-faint">Stays in scope?</div><div className="text-[15px] font-semibold mt-1 text-ink flex items-center gap-1">{recon.profile.staysInScope ? <><Check size={15} />YES</> : <><X size={15} />NO</>}</div></div>
-            <div className="rounded-lg border border-border bg-surface-sunk px-3 py-2"><div className="text-[10px] uppercase tracking-wide text-ink-faint">Refusal style</div><div className="text-[12px] mt-1 text-ink-muted">{(recon.profile.refusalStyle ?? "—").slice(0, 60)}</div></div>
-          </div>
+          <>
+            <div className="grid sm:grid-cols-3 gap-2.5">
+              <div className="rounded-lg border border-border bg-surface-sunk px-3 py-2"><div className="text-[10px] uppercase tracking-wide text-ink-faint">Discloses it&apos;s AI?</div><div className="text-[15px] font-semibold mt-1 text-ink flex items-center gap-1">{recon.profile.disclosesAi === false ? <><X size={15} />NO</> : recon.profile.disclosesAi === true ? <><Check size={15} />YES</> : "unclear"}</div></div>
+              <div className="rounded-lg border border-border bg-surface-sunk px-3 py-2"><div className="text-[10px] uppercase tracking-wide text-ink-faint">Stays in scope?</div><div className="text-[15px] font-semibold mt-1 text-ink flex items-center gap-1">{recon.profile.staysInScope ? <><Check size={15} />YES</> : <><X size={15} />NO</>}</div></div>
+              <div className="rounded-lg border border-border bg-surface-sunk px-3 py-2"><div className="text-[10px] uppercase tracking-wide text-ink-faint">Refusal style</div><div className="text-[12px] mt-1 text-ink-muted">{(recon.profile.refusalStyle ?? "—").slice(0, 60)}</div></div>
+            </div>
+            {/* the intel→attack thread: recon DROVE which plays ran, it isn't decoration (feedback #1) */}
+            {(recon.links ?? []).map((lk, i) => (
+              <div key={i} className="mt-2.5 flex items-start gap-1.5 text-[11.5px]"><CornerDownRight size={13} className="mt-0.5 text-metric shrink-0" /><span className="text-ink-muted">intel · <b className="text-ink">{intelLabel(lk)}</b> → primed the <span className="mono text-brand">{lk.drivesObjective}</span> play</span></div>
+            ))}
+          </>
         ) : recon?.status === "skipped" || recon?.status === "error" ? (
           <span className="flex items-center gap-1.5"><CircleSlash size={14} className="text-ink-faint" /><b className="text-ink">Recon {recon.status === "error" ? "errored" : "blocked"}</b> — {blockCause(recon.reason)} · the attacker pressed its phase plan without scouting intel</span>
         ) : <span className="italic text-ink-faint">scouting the mark…</span>}
