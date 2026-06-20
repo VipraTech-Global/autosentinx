@@ -7,6 +7,7 @@ AARAV's gate reported clean.
 """
 import json
 import logging
+import os
 import random
 
 from .attacker import ComposableAttacker
@@ -392,8 +393,18 @@ class Runner:
         outcome = {"SUCCEEDED": "succeeded", "DEFENDED": "defended", "UNKNOWN": "unknown"}.get(
             pv.outcome, "defended"
         )
+        # P7 SHADOW layer (Codex rec): regex-tier domain candidates recorded for calibration when
+        # DOMAIN_FINDINGS=shadow|enforced. Advisory ONLY — does NOT change `outcome` or verdict_score
+        # (the UCB reward stays the StrongREJECT score). Enforced outcome-gating awaits the two-tier
+        # judge-confirmation layer; until then enforced behaves like shadow (record, don't gate).
+        policy_mode = os.environ.get("DOMAIN_FINDINGS", "off")
+        domain_json = ""
+        if policy_mode != "off":
+            from .verdict import shadow_domain_candidates
+            domain_json = json.dumps(shadow_domain_candidates(pv.outcome == "SUCCEEDED", hits))
         return _attempt(
             outcome=outcome, verdict_score=pv.score, num_turns=len(turns),
             judge_votes=json.dumps([v.model_dump() for v in pv.votes]),
             detector_hits=json.dumps([h.model_dump() for h in hits]),
+            domain_findings=domain_json, policy_mode=policy_mode,
         ), turns

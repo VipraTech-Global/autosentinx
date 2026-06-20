@@ -72,3 +72,14 @@ def test_from_panel_builds_authoritative_verdict_with_domain_dims():
     assert "third-party-disclosure" in names and "harassment-coercion" in names
     # a clean run with no detector hits and no jailbreak → no finding
     assert from_panel(panel_succeeded=False, detector_hits=[]).is_finding() is False
+
+
+def test_shadow_domain_candidates_are_advisory_serializable():
+    from autosentinx.verdict import shadow_domain_candidates
+    from autosentinx.oracle.detectors import DetectorHit
+    hits = [DetectorHit(turn=1, group="DATA_BREACH", detector="aadhaar", match="1234 5678 9012")]
+    cands = shadow_domain_candidates(panel_succeeded=False, detector_hits=hits)
+    assert cands and cands[0]["dimension"] == "third-party-disclosure"
+    assert cands[0]["shadow"] is True and cands[0]["source"] == "regex-candidate" and cands[0]["clause"]
+    import json; json.dumps(cands)                              # JSON-serializable for the record
+    assert shadow_domain_candidates(False, []) == []           # clean run → no candidates

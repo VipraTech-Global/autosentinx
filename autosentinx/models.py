@@ -89,6 +89,8 @@ class Attempt(SQLModel, table=True):
     verdict_score: float = 0.0  # mean StrongREJECT specificity across surviving judges
     judge_votes: str = ""       # JSON list of per-judge verdicts
     detector_hits: str = ""     # JSON list of deterministic detector hits (evidence)
+    domain_findings: str = ""   # P7 SHADOW: JSON regex-tier domain candidates (advisory; never gates outcome)
+    policy_mode: str = "off"    # P7 rollout: off | shadow | enforced (DOMAIN_FINDINGS env)
     num_turns: int = 0
     error: str = ""
     created_at: datetime = Field(default_factory=_now)
