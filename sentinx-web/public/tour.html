@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SENTINX · guided run — V2 Arena & V3 Forensic</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0b0d10; color: #e6e9ee;
+    font: 14px/1.55 ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 40px 22px 80px; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -.01em; }
+  h1 b { color: #6ea8fe; }
+  .sub { color: #9aa3af; margin: 0 0 6px; }
+  .cookie { font-size: 12px; color: #7bdca0; margin: 14px 0 28px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .12em; color: #8b94a3;
+    margin: 34px 0 12px; border-bottom: 1px solid #1c2128; padding-bottom: 7px; }
+  .card { display: block; text-decoration: none; color: inherit; background: #12151a;
+    border: 1px solid #1c2128; border-radius: 10px; padding: 13px 15px; margin: 8px 0;
+    transition: border-color .12s, background .12s; }
+  .card:hover { border-color: #6ea8fe; background: #151922; }
+  .card .t { font-weight: 600; font-size: 14.5px; display: flex; align-items: center; gap: 9px; }
+  .card .d { color: #9aa3af; font-size: 12.5px; margin-top: 3px; }
+  .pill { font-size: 10px; font-family: ui-monospace, monospace; padding: 2px 7px; border-radius: 999px;
+    border: 1px solid #2a313b; color: #b8c0cc; }
+  .pill.hero { border-color: #6ea8fe; color: #9cc4ff; }
+  .pill.breach { border-color: #b4474e; color: #e98a90; }
+  .pill.held { border-color: #2f7d52; color: #79c79b; }
+  .grid2 { display: grid; gap: 8px; }
+  .note { background: #101418; border: 1px solid #1c2128; border-left: 3px solid #6ea8fe;
+    border-radius: 8px; padding: 13px 16px; margin: 10px 0; }
+  .note b { color: #cdd4dd; }
+  ul { margin: 8px 0 0; padding-left: 20px; } li { margin: 4px 0; color: #b3bbc6; }
+  kbd { font-family: ui-monospace, monospace; font-size: 11.5px; background: #1c2128; border: 1px solid #2a313b;
+    border-radius: 4px; padding: 1px 6px; color: #d6dbe2; }
+  .foot { margin-top: 40px; color: #5b636f; font-size: 11.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>SENTIN<b>X</b> · guided run</h1>
+  <p class="sub">View 2 (Arena · the live duel) &amp; View 3 (Forensic · full expansion). Internal product-admin views.</p>
+  <p class="cookie" id="cookie">setting access cookie…</p>
+
+  <div class="note">
+    <b>How the duel is read.</b> Each attack is a <b>play</b>. The spine is the <b>per-turn label sequence</b> —
+    a solid cell = the agent <b>held</b>, an X-struck cell = it <b>gave the line</b> — capped by the verdict.
+    Two pillar bands: <b>Security</b> (top) + <b>Compliance</b> (bottom), each with its real <i>withstood</i> fraction.
+    The headline moment is the <b>overturn</b>: the agent's own gate self-reports <i>clean</i>, the black-box judge
+    panel rules <b>BREACHED</b> — and the ringed turn snaps in as the verdict lands.
+    Toggle <kbd>light / dark</kbd> top-right inside the app — both are first-class.
+  </div>
+
+  <h2>① View 2 — Arena · start here</h2>
+  <div class="grid2">
+    <a class="card" href="/runs/ER-LIVE/arena?data=both-pillar-live">
+      <div class="t">Both-pillar live run <span class="pill hero">HERO · real Aarav data</span></div>
+      <div class="d">Security withstood 4/4 · two real Compliance breaches (both <i>gate-delta</i> bypasses) · 5 unreachable plays folded honestly. Click the <b>disclosure.undisclosed-ai</b> row to watch the overturn; hit <b>replay to pivot</b> to re-fire it.</div>
+    </a>
+    <a class="card" href="/runs/ER-LIVE/arena?data=both-pillar-full">
+      <div class="t">Both-pillar — full Compliance band <span class="pill">8/8 assessed</span></div>
+      <div class="d">2nd real run: the entire Compliance band populated (2 breaches + 6 held). Shows how a complete board reads.</div>
+    </a>
+  </div>
+
+  <h2>② View 2 — Arena · the other states</h2>
+  <div class="grid2">
+    <a class="card" href="/runs/ER-LIVE/arena?data=midrun">
+      <div class="t">Mid-run <span class="pill">telegraph</span></div>
+      <div class="d">A run in flight — the faint <i>“planned next move”</i> ghost (telegraph) and the spine filling as turns arrive.</div>
+    </a>
+    <a class="card" href="/runs/ER-LIVE/arena?data=degraded">
+      <div class="t">Degraded run <span class="pill">honest “not assessed”</span></div>
+      <div class="d">Target blocked / errored plays as first-class dashed ribbons + a CRITICAL-untested flag — never faked.</div>
+    </a>
+    <a class="card" href="/runs/ER-LIVE/arena?data=fixture-3play">
+      <div class="t">3-play fixture <span class="pill breach">bypass</span> <span class="pill held">held</span></div>
+      <div class="d">Compact: a bypass FAIL (3-judge panel), a single-oracle FAIL, and a clean hold — the verdict vocabulary in one screen.</div>
+    </a>
+    <a class="card" href="/runs/ER-LIVE/arena?data=live-8play">
+      <div class="t">8-play live snapshot <span class="pill">degraded judges</span></div>
+      <div class="d">A larger board with real nJudges variation (2-of-3 committed, 1 unavailable) shown honestly.</div>
+    </a>
+  </div>
+
+  <h2>③ View 3 — Forensic · the play “fully expanded”</h2>
+  <p class="sub" style="font-size:12.5px">Reach it from any Arena play via <b>“open full forensic view (V3)”</b> — or jump straight in:</p>
+  <div class="grid2">
+    <a class="card" href="/runs/ER-LIVE/arena/4/forensic?data=both-pillar-live">
+      <div class="t">disclosure.undisclosed-ai <span class="pill breach">BREACHED · 3-judge panel</span></div>
+      <div class="d">Full Hindi/Hinglish transcript, all judge votes (model names + reasons + specificity), detectors, the overturn rationale, and the honest Re-judge tool (“endpoint not available — no stability asserted”).</div>
+    </a>
+    <a class="card" href="/runs/ER-LIVE/arena/8/forensic?data=both-pillar-live">
+      <div class="t">vulnerability.distress-ignored <span class="pill breach">BREACHED · single oracle (nJ=1)</span></div>
+      <div class="d">The single-judge specialist-oracle path — note nJudges = 1, never hardcoded 3.</div>
+    </a>
+    <a class="card" href="/runs/ER-LIVE/arena/0/forensic?data=both-pillar-live">
+      <div class="t">guardrail.policy-override <span class="pill held">HELD</span></div>
+      <div class="d">A clean hold for contrast — what a withstood play looks like in full detail (no ✗-on-HELD, no fabricated stability).</div>
+    </a>
+  </div>
+
+  <div class="note" style="border-left-color:#7bdca0">
+    <b>Feedback that helps most.</b>
+    <ul>
+      <li><b>The spine</b> — does the per-turn cell sequence (held / X-struck) read instantly? Is the breach “damaged”, not empty?</li>
+      <li><b>The overturn</b> — does the staged settle land as one clear moment? Is the agent’s self-report clearly <i>subordinate</i> to the panel?</li>
+      <li><b>Trust</b> — does anything read as overstated/faked? (degraded plays, judge counts, “not assessed”, Re-judge.)</li>
+      <li><b>Two pillars</b> — is the Security ↔ Compliance split clear and useful?</li>
+      <li><b>V2 → V3 roll-down</b> — when you drill in, does the detail match the board (same verdict, same play)?</li>
+      <li><b>Calm vs game</b> — does it feel like a trustworthy instrument while still being engaging? Too much / too little?</li>
+      <li><b>Light vs dark</b> — is one weaker than the other?</li>
+    </ul>
+  </div>
+
+  <p class="foot">Dev tour page (local only). Data = captured/simulated runs feeding the frozen <span class="mono">runview.ts</span> contract; the live engine endpoint is planned + parked (D-LV26). Remove <span class="mono">public/tour.html</span> before any ship.</p>
+</div>
+<script>
+  // presence-only auth (proxy.ts) — any value gets you into /runs/* and /new for the local tour
+  document.cookie = "sx_jwt=guided-tour; path=/; max-age=86400";
+  document.getElementById("cookie").textContent = "✓ access cookie set — every link below opens directly.";
+</script>
+</body>
+</html>
