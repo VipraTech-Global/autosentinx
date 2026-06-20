@@ -22,6 +22,7 @@ export default function ArenaPage() {
 
   useEffect(() => {
     let active = true;
+    let loaded = false;            // has a poll ever populated run? a first-load engine error must surface, not spin forever (CR-P2b)
     let iv: ReturnType<typeof setInterval> | undefined;
     setRun(null); setErr(null);
     // engine source → getRunView(id); else fixture/dev-bridge → fetch + fromStateJson (R1-B2: one shared adapter)
@@ -35,6 +36,7 @@ export default function ArenaPage() {
       loadOne()
         .then((rv) => {
           if (!active) return;
+          loaded = true;
           setRun(rv); setErr(null);
           const terminal = rv.status === "done" || rv.status === "failed" || rv.status === "blocked";
           if (livePoll && terminal && iv) { clearInterval(iv); iv = undefined; }
@@ -42,7 +44,9 @@ export default function ArenaPage() {
         .catch((e) => {
           if (!active) return;
           if (isEngine && /401|unauthor/i.test(String(e))) setErr("Log in to view the live run.");
-          else if (!livePoll) setErr(String(e));   // transient poll miss mid-stream is fine
+          else if (!livePoll) setErr(String(e));
+          else if (isEngine && !loaded) setErr(String(e));   // first-load hard error (404/500/network) must surface, not spin forever (CR-P2b)
+          // else: transient poll miss mid-stream is fine — keep the last good frame
         });
     load();
     if (livePoll) iv = setInterval(load, 2500);

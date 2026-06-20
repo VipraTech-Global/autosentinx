@@ -22,7 +22,7 @@ from .outcome import derive_outcome
 
 _INTENSITY = {"low", "med", "high", "xhigh", "max", "ultra"}  # runview.ts IntensityLevel enum
 _RUN_STATUS = {"pending_approval": "starting", "running": "running", "completed": "done", "failed": "failed"}
-_PLAY_STATUS = {"blocked": "blocked", "error": "error"}  # else → "done" (Wave 1; queued/running = Wave 3)
+_PLAY_STATUS = {"blocked": "blocked", "error": "error", "unknown": "error"}  # 'unknown' = all judges failed → degraded/not-assessed (CR-P2); else → "done"
 
 
 def _regulation(spec, frameworks) -> list[dict]:
@@ -172,7 +172,7 @@ class RunViewProjection:
             "id": attempt.objective_slug, "objective": attempt.objective_slug,
             "title": spec.title if spec else attempt.objective_slug,
             "mode": attempt.mode, "severity": (spec.severity if spec else "medium"), "pillar": pillar,
-            "technique": attempt.technique_slug, "persona": attempt.persona_slug or attempt.persona,
+            "technique": attempt.technique_slug, "persona": attempt.persona or attempt.persona_slug,  # prose title (CR-P3); FE renders verbatim
             "regulation": _regulation(spec, fw), "goal": spec.goal if spec else attempt.rule,
             "status": status, "turns": tv, "phasePlan": phase_plan,
             "arc": arc["arc"], "beats": arc["beats"],
@@ -185,12 +185,16 @@ class RunViewProjection:
 
     def _verdict(self, attempt, turns, status) -> dict:
         if status in ("blocked", "error"):
-            return {"productOutcome": "BLOCKED" if status == "blocked" else "ERROR", "note": attempt.error or ""}
+            # 'unknown' (all judges failed) maps to status 'error' (CR-P2); give it an honest cause note
+            note = attempt.error or ("ungraded — all judges failed" if attempt.outcome == "unknown" else "")
+            return {"productOutcome": "BLOCKED" if status == "blocked" else "ERROR", "note": note}
         votes = _votes(attempt.judge_votes)
         oracle = _oracle(attempt.mode)
-        product = derive_outcome(attempt.outcome, oracle, votes, attempt.verdict_score)
+        # fairness oracle has no judge panel — its FAIL/PASS comes from the disparate-treatment outcome (mirror api.ts, CR-P1)
+        fairness_outcome = ("FAIL" if attempt.outcome == "succeeded" else "PASS") if oracle == "fairness" else None
+        product = derive_outcome(attempt.outcome, oracle, votes, attempt.verdict_score, fairness_outcome)
         detectors = _detector_hits(attempt.detector_hits)
-        if product is None:  # 'unknown' (all judges failed) — honest ERROR, never fabricate a verdict
+        if product is None:  # defensive guard — 'unknown' now degrades to status 'error' above; never fabricate a verdict
             return {"productOutcome": "ERROR", "note": attempt.error or "ungraded (all judges failed)",
                     "panelOutcome": (attempt.outcome or "").upper(), "nJudges": 0, "nCommitted": 0,
                     "score": attempt.verdict_score, "votes": votes, "detectors": detectors}

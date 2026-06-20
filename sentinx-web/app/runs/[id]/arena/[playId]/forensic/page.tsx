@@ -21,6 +21,7 @@ export default function ForensicPage() {
 
   useEffect(() => {
     let on = true;
+    let loaded = false;            // first successful poll? a first-load engine error must surface, not spin forever (CR-P2b)
     let iv: ReturnType<typeof setInterval> | undefined;
     const loadOne = (): Promise<RunView> =>
       isEngine
@@ -31,11 +32,12 @@ export default function ForensicPage() {
     const load = () => loadOne()
       .then((rv) => {
         if (!on) return;
+        loaded = true;
         setRun(rv); setErr(null);
         const terminal = rv.status === "done" || rv.status === "failed" || rv.status === "blocked";
         if (isEngine && terminal && iv) { clearInterval(iv); iv = undefined; }   // engine keeps polling until terminal
       })
-      .catch((e) => { if (!on) return; if (isEngine && /401|unauthor/i.test(String(e))) setErr("Log in to view the live run."); else if (!isEngine) setErr(String(e)); });
+      .catch((e) => { if (!on) return; if (isEngine && /401|unauthor/i.test(String(e))) setErr("Log in to view the live run."); else if (!isEngine) setErr(String(e)); else if (isEngine && !loaded) setErr(String(e)); /* first-load hard error must surface (CR-P2b) */ });
     load();
     if (isEngine) iv = setInterval(load, 2500);
     return () => { on = false; if (iv) clearInterval(iv); };

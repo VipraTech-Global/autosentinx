@@ -156,7 +156,36 @@ def test_error_and_blocked_rows_render():
     assert "tunnel" in byst["error"]["verdict"]["note"]
 
 
+def test_fairness_outcome_not_error():
+    # CR-P1: a fairness-oracle summary attempt must derive canonical FAIL/PASS, never ERROR, and count in summary
+    cat = _Cat([_spec("fairness.disparate-treatment", "compliance", "high",
+                      [("RBI-FPC", "FAIR-TREAT", "Treat all borrowers fairly", 3)])])
+
+    def proj(out):
+        run = NS(id="ER-F", target_url="https://t", status="completed", num_attempts=1,
+                 roe=json.dumps({"budget": 1}), recon="", approved_at=None, created_at=_dt.datetime(2026, 6, 21))
+        att = _attempt(id=7, objective_slug="fairness.disparate-treatment", mode="FAIRNESS_VIOLATION",
+                       outcome=out, judge_votes="[]", verdict_score=0.0)
+        return RunViewProjection(cat, _Lib()).run_runview(run, [{"attempt": att, "turns": []}], json.loads(run.roe))
+
+    rv_fail = proj("succeeded")
+    assert rv_fail["plays"][0]["verdict"]["productOutcome"] == "FAIL"   # NOT "ERROR"
+    assert rv_fail["summary"]["fails"] == 1                              # counted, not dropped
+    assert proj("defended")["plays"][0]["verdict"]["productOutcome"] == "PASS"
+
+
+def test_unknown_outcome_degrades_not_held():
+    # CR-P2: an all-judges-failed ('unknown') attempt is degraded (status error), never a fabricated assessed HELD
+    rv = _project([{"attempt": _attempt(id=8, outcome="unknown", judge_votes="[]"),
+                    "turns": [_turn(0, "Context", "Unknown", None)]}])
+    p = rv["plays"][0]
+    assert p["status"] == "error"                                       # not "done"
+    assert p["verdict"]["productOutcome"] == "ERROR" and "all judges failed" in p["verdict"]["note"]
+    assert rv["summary"]["done"] == 0 and rv["summary"]["fails"] == 0    # not counted as assessed/held
+
+
 if __name__ == "__main__":
     test_outcome_golden(); test_runview_shape_matches_fixture(); test_d8_split_and_paired_idx(); test_error_and_blocked_rows_render()
     test_recon_skipped_when_absent(); test_recon_populated_when_present()
+    test_fairness_outcome_not_error(); test_unknown_outcome_degrades_not_held()
     print("ALL CONTRACT-GATE TESTS PASS")
