@@ -22,6 +22,7 @@ from autosentinx.audit import append_event, verify_chain
 from autosentinx.catalog import Catalog
 from autosentinx.config import get_settings
 from autosentinx.console import ConsoleView
+from autosentinx.runview import RunViewProjection
 from autosentinx.coverage import build_archive
 from autosentinx.db import SessionLocal
 from autosentinx.ingestion import ingest
@@ -379,6 +380,26 @@ async def console_run(run_id: str):
         raise HTTPException(status_code=404, detail="run not found")
     catalog = await Catalog.load()
     return ConsoleView(catalog).run_full(d["run"], d["attempts"])
+
+
+@app.get("/console/runs/{run_id}/runview")
+async def console_run_runview(run_id: str, audience: str = "internal"):
+    """Live-duel RunView projection (D-LV-dep3) — sibling of /console/runs/{id} on the same polled,
+    auth-gated surface. Emits the state.json-shaped RunView the Live Views consume (fromStateJson).
+    Loads catalog AND library (RunView needs phasePlan). audience=internal shows model names (D-LV6);
+    ?audience=customer would anonymize (unused today — customers never reach this endpoint)."""
+    d = await store.get_run(run_id)
+    if not d:
+        raise HTTPException(status_code=404, detail="run not found")
+    catalog = await Catalog.load()
+    library = await Library.load()
+    rv = RunViewProjection(catalog, library).run_runview(
+        d["run"], d["attempts"], json.loads(d["run"].roe or "{}"))
+    if audience == "customer":  # internal-only today; collapse model names if ever surfaced customer-side
+        for p in rv["plays"]:
+            for i, v in enumerate((p.get("verdict") or {}).get("votes", [])):
+                v["model"] = chr(65 + i)  # A / B / C
+    return rv
 
 
 @app.get("/runs")

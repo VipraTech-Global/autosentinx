@@ -2,6 +2,7 @@
 // Maps the backend console view-model into the `Run` type and fills the UI-derived `outcome`.
 import type { Run, Observation, Outcome } from "./types";
 import { deriveOutcome } from "./outcome";
+import { fromStateJson, type RunView } from "./runview";
 
 async function req(path: string, init?: RequestInit): Promise<Response> {
   const r = await fetch(path, { cache: "no-store", ...init });
@@ -70,6 +71,14 @@ function withOutcomes(run: Run & { observations: Array<Omit<Observation, "outcom
 export async function getRun(runId: string): Promise<Run> {
   const r = await req(`/api/console/runs/${runId}`);
   return withOutcomes(await r.json());
+}
+
+// Live-duel RunView (D-LV-dep3). Returns RunView via fromStateJson — the SAME adapter the fixture
+// path uses (R1-B2), so fixtures + live share one shape. NOT withOutcomes (productOutcome is
+// engine-derived server-side, EP-5 — must not be re-derived FE-side).
+export async function getRunView(runId: string): Promise<RunView> {
+  const r = await req(`/api/console/runs/${runId}/runview`);
+  return fromStateJson(await r.json(), runId);
 }
 
 export async function listRuns(): Promise<{ runs: Array<Pick<Run, "id" | "status" | "agentName" | "startedAt" | "playsDone" | "playsTotal">> }> {
