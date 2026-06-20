@@ -18,6 +18,12 @@ objectives/
 /runs/
 *.log
 
+# --- Live-bridge / guided-run throwaways (dev only; never commit) ---
+aarav-live/state.demo.json
+aarav-live/events.demo.jsonl
+aaravresults1.demo.md
+aarav-live/captures/guided-run-*/run.log
+
 # --- Local planning/design docs (not part of the shipped code) ---
 BUILD-APPROACH.md
 TECH-PLAN.md

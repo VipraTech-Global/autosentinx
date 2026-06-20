@@ -43,3 +43,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# live-bridge transient — the Arena's ?live=1 source is a volatile per-turn run mirror, NOT a fixture
+/public/runs/live.json
+/public/runs/*.tmp

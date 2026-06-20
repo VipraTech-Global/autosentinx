@@ -12,18 +12,29 @@ export default function ArenaPage() {
   const search = useSearchParams();
   const router = useRouter();
   const data = search.get("data") ?? "live-8play";
+  const livePoll = search.get("live") === "1";   // ?live=1 → poll the source as a run streams in (D-Q15 cadence)
   const [run, setRun] = useState<RunView | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    let live = true;
+    let active = true;
+    let iv: ReturnType<typeof setInterval> | undefined;
     setRun(null); setErr(null);
-    fetch(`/runs/${data}.json`, { cache: "no-store" })
-      .then((r) => { if (!r.ok) throw new Error(`load ${data} failed`); return r.json(); })
-      .then((raw) => { if (live) setRun(fromStateJson(raw, String(params?.id ?? "ER-LIVE"))); })
-      .catch((e) => live && setErr(String(e)));
-    return () => { live = false; };
-  }, [data, params?.id]);
+    const load = () =>
+      fetch(`/runs/${data}.json`, { cache: "no-store" })
+        .then((r) => { if (!r.ok) throw new Error(`load ${data} failed`); return r.json(); })
+        .then((raw) => {
+          if (!active) return;
+          const rv = fromStateJson(raw, String(params?.id ?? "ER-LIVE"));
+          setRun(rv); setErr(null);
+          const terminal = rv.status === "done" || rv.status === "failed" || rv.status === "blocked";
+          if (livePoll && terminal && iv) { clearInterval(iv); iv = undefined; }
+        })
+        .catch((e) => { if (active && !livePoll) setErr(String(e)); }); // transient miss mid-stream is fine
+    load();
+    if (livePoll) iv = setInterval(load, 2500);
+    return () => { active = false; if (iv) clearInterval(iv); };
+  }, [data, params?.id, livePoll]);
 
   return (
     <div className="min-h-dvh bg-bg text-ink">
@@ -36,6 +47,14 @@ export default function ArenaPage() {
           <span className="text-ink-faint text-[11px] font-normal">· arena (view 2)</span>
         </span>
         {run ? <span className="mono text-[12px] text-ink-muted bg-surface border border-border rounded-md px-2 py-1 truncate max-w-[280px]">{run.id} · {run.target || "—"}</span> : null}
+        {livePoll && run ? (
+          run.status === "done" || run.status === "failed" || run.status === "blocked"
+            ? <span className="mono text-[11px] text-ink-faint inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-ink-faint" />run complete</span>
+            : <span className="mono text-[11px] inline-flex items-center gap-1.5" style={{ color: "var(--fail-text)" }}><span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--fail)" }} />LIVE</span>
+        ) : null}
+        {/* honesty: this ?live=1 path is a DEV BRIDGE (engine real; auth+scan mocked) previewing the
+            parked engine port D-LV26 — it must never be mistaken for the production funnel (review P1-3) */}
+        {livePoll ? <span className="mono text-[10px] uppercase tracking-wide text-warn-text border border-warn-text/40 rounded px-1.5 py-0.5" title="Dev bridge: the engine run is real, but login + scan are mocked and the ROE-approval gate is skipped. Previews the parked engine port (D-LV26).">dev bridge</span> : null}
         <span className="flex-1" />
         {/* sample switcher (build/test aid) */}
         <select value={data} onChange={(e) => router.replace(`?data=${e.target.value}`)} className="mono text-[11px] bg-surface border border-border rounded-md px-2 py-1 text-ink-muted">
