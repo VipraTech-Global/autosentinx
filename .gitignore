@@ -22,6 +22,10 @@ objectives/
 BUILD-APPROACH.md
 TECH-PLAN.md
 PHASE-*.md
+BUILD-ROADMAP.md
+
+# --- corrobai trust-harness artifacts (spec/research/corpus/decision-graph/architecture) — local only ---
+.corrobai/
 
 # --- OS / editors ---
 .DS_Store

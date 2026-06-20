@@ -25,6 +25,8 @@ from .recon import Recon, ReconProfile
 from .selection import Selector
 from .store import SqlModelStore
 from .target import AaravTarget
+from .gateway import AuditedGateway, Budget, RoE
+from .roe import KillSwitch
 
 log = logging.getLogger("autosentinx.runner")
 
@@ -90,7 +92,14 @@ class Runner:
         return cid, last
 
     async def run_campaign(self, run_id: str, runspecs: list[RunSpec], target_base: str | None = None) -> None:
-        target = AaravTarget(target_base)
+        # P4 keystone: the audited gateway is the SOLE egress to the target — every start/turn/end
+        # routes through it (RoE revalidation + audit append + governed-bound accounting), fail-closed.
+        # authorized=True reflects the human RoE approval already granted upstream at the /scan gate.
+        target = AuditedGateway(
+            target=AaravTarget(target_base),
+            roe=RoE(run_id=run_id, authorized=True, kill_switch_engaged=KillSwitch().engaged),
+            budget=Budget(granted=None),   # gateway audits every egress; the play budget is enforced by the loop
+        )
         self._idx = 0
         succeeded = 0
         done = 0
@@ -148,7 +157,14 @@ class Runner:
                          target_base: str | None = None) -> None:
         """Budget-driven campaign (Phase 5 H1): round-robin objectives (coverage) × UCB/random
         technique selection (exploitation). strategy: ucb | random."""
-        target = AaravTarget(target_base)
+        # P4 keystone: the audited gateway is the SOLE egress to the target — every start/turn/end
+        # routes through it (RoE revalidation + audit append + governed-bound accounting), fail-closed.
+        # authorized=True reflects the human RoE approval already granted upstream at the /scan gate.
+        target = AuditedGateway(
+            target=AaravTarget(target_base),
+            roe=RoE(run_id=run_id, authorized=True, kill_switch_engaged=KillSwitch().engaged),
+            budget=Budget(granted=None),   # gateway audits every egress; the play budget is enforced by the loop
+        )
         self._idx = 0
         succeeded = 0
         done = 0
@@ -216,7 +232,14 @@ class Runner:
                            replicates: int = 2, turns_per: int = 3, target_base: str | None = None) -> None:
         """Fairness audit (Phase 6 H2/ADR 0011 §3): for each matched persona pair, run the SAME neutral
         script with both, then a paired judge compares the agent's treatment. SUCCEEDED = disparate."""
-        target = AaravTarget(target_base)
+        # P4 keystone: the audited gateway is the SOLE egress to the target — every start/turn/end
+        # routes through it (RoE revalidation + audit append + governed-bound accounting), fail-closed.
+        # authorized=True reflects the human RoE approval already granted upstream at the /scan gate.
+        target = AuditedGateway(
+            target=AaravTarget(target_base),
+            roe=RoE(run_id=run_id, authorized=True, kill_switch_engaged=KillSwitch().engaged),
+            budget=Budget(granted=None),   # gateway audits every egress; the play budget is enforced by the loop
+        )
         self._idx = 0
         done = 0
         disparate = 0
