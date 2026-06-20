@@ -68,7 +68,8 @@ function Ribbon({ p, focused, onFocus }: { p: PlayView; focused: boolean; onFocu
       style={crit ? { boxShadow: "inset 3px 0 0 var(--sev-critical)" } : fail ? { boxShadow: "inset 3px 0 0 var(--fail)" } : undefined}>
 {/* HELD rows stay maximally ink — only the breach draws the eye (critic round-2 P2) */}
       <div className="flex items-center gap-2 flex-wrap">
-        <Sev s={p.severity} />
+        {/* severity is the objective's property; on an UN-assessed row mute it so a never-run CRITICAL doesn't pull the eye on a calm board (critic round-4 P2) */}
+        <span style={p.status === "error" || p.status === "blocked" ? { opacity: 0.4 } : undefined}><Sev s={p.severity} /></span>
         <span className="mono text-xs text-ink truncate max-w-[210px]">{p.id}</span>
         {p.severity === "critical" && p.verdict?.productOutcome === "PASS" ? <Award size={13} className="text-metric" /> : null}
         <span className="flex-1" />
@@ -84,6 +85,11 @@ function Ribbon({ p, focused, onFocus }: { p: PlayView; focused: boolean; onFocu
 }
 
 function BandView({ b, focusIdx, onFocus }: { b: Band; focusIdx: number | null; onFocus: (i: number) => void }) {
+  // Assessed verdicts LEAD; degraded (tunnel-lost) plays fold into one quiet group so a
+  // partial run reads as a calm instrument, not "the run broke" (critic round-4 P1).
+  const [openDegraded, setOpenDegraded] = useState(false);
+  const live = b.plays.filter((p) => p.status !== "error" && p.status !== "blocked");
+  const degraded = b.plays.filter((p) => p.status === "error" || p.status === "blocked");
   return (
     <section className="mb-4">
       <div className="flex items-baseline gap-2 mb-1.5">
@@ -91,8 +97,20 @@ function BandView({ b, focusIdx, onFocus }: { b: Band; focusIdx: number | null; 
         <span className="text-[11px] mono text-ink-muted">withstood <b className="text-ink tnum">{b.withstood}/{b.graded || 0}</b></span>
         <span className="flex-1 border-b border-border self-center ml-1" />
       </div>
-      {b.plays.length ? <div className="grid gap-1.5">{b.plays.map((p) => <Ribbon key={p.idx} p={p} focused={focusIdx === p.idx} onFocus={() => onFocus(p.idx)} />)}</div>
-        : <p className="text-[11px] mono text-ink-faint italic py-1">no {b.pillar} attacks in this run</p>}
+      {b.plays.length ? (
+        <div className="grid gap-1.5">
+          {live.map((p) => <Ribbon key={p.idx} p={p} focused={focusIdx === p.idx} onFocus={() => onFocus(p.idx)} />)}
+          {degraded.length ? (
+            <div className="rounded-md border border-dashed border-border bg-surface-sunk/30">
+              <button onClick={() => setOpenDegraded((v) => !v)} className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[11px] mono text-ink-faint hover:text-ink-muted">
+                <ChevronRight size={12} className="transition-transform" style={openDegraded ? { transform: "rotate(90deg)" } : undefined} />
+                {degraded.length} not assessed — target unreachable
+              </button>
+              {openDegraded ? <div className="grid gap-1.5 px-1.5 pb-1.5">{degraded.map((p) => <Ribbon key={p.idx} p={p} focused={focusIdx === p.idx} onFocus={() => onFocus(p.idx)} />)}</div> : null}
+            </div>
+          ) : null}
+        </div>
+      ) : <p className="text-[11px] mono text-ink-faint italic py-1">no {b.pillar} attacks in this run</p>}
     </section>
   );
 }
@@ -146,7 +164,7 @@ function FocalRibbon({ p, replayKey }: { p: PlayView; replayKey: number }) {
                 {isReached ? cells.map((t) => {
                   const isPivot = isBreach && p.pivotTurn != null && t.idx === p.pivotTurn;
                   return isPivot
-                    ? <span key={`${t.idx}-${replayKey}`} className="relative inline-flex reveal" title="breach point — the turn the classifier flagged (advisory)"><Cell k={t.cell} lg /><span className="absolute -inset-[2px] rounded-[2px]" style={{ boxShadow: "0 0 0 1.5px var(--fail)" }} /></span>
+                    ? <span key={`${t.idx}-${replayKey}`} className="relative inline-flex reveal" title="breach point — the turn the classifier flagged (advisory)"><Cell k={t.cell} lg /><span className="absolute -inset-[2px] rounded-[2px] pivot-ring" /></span>
                     : <Cell key={t.idx} k={t.cell} lg />;
                 }) : <span className="text-[9.5px] mono text-ink-faint italic">not reached</span>}
               </div>
@@ -287,7 +305,8 @@ export default function Arena({ run, onDrillToV3 }: { run: RunView; onDrillToV3?
         {run.summary.bypasses ? <span style={{ color: "var(--warn-text)" }}>{run.summary.bypasses} gate-delta</span> : null}
         {blocked ? <span className="text-ink-faint">{blocked} blocked</span> : null}
         {errored ? <span className="text-ink-faint">{errored} not assessed</span> : null}
-        {critUntested ? <span style={{ color: "var(--warn-text)" }}><AlertTriangle size={12} className="inline" /> {critUntested} CRITICAL untested</span> : null}
+        {/* operational-risk note, NOT a verdict → ink + glyph only (DESIGN.md §2: colour reserved for severity/outcome) */}
+        {critUntested ? <span className="text-ink-muted"><AlertTriangle size={12} className="inline" /> {critUntested} CRITICAL untested</span> : null}
       </div>
       <div className="mb-4"><StripLegend /></div>
 

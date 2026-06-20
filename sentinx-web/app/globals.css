@@ -172,8 +172,16 @@
 .cell-lg { width: 14px; height: 14px; }
 .cell-held    { background: var(--ink); }                                   /* solid — held the line */
 .cell-wavered { background: linear-gradient(90deg, var(--ink) 50%, transparent 50%); box-shadow: inset 0 0 0 1px var(--ink-faint); } /* half — gave ground */
-.cell-yielded { background: var(--ink); }                                   /* struck — gave the line */
-.cell-yielded::after { content: ""; position: absolute; inset: 0; background: linear-gradient(45deg, transparent 40%, var(--surface) 40%, var(--surface) 60%, transparent 60%); }
+/* struck-OUT — gave the line: an ink tile with the X actually CUT OUT (mask), so the gap
+   shows whatever row bg sits behind it (tracks focused/unfocused). Present, not empty; ink-only. */
+.cell-yielded { background: var(--ink); box-shadow: inset 0 0 0 1px var(--ink-faint);
+  -webkit-mask:
+    linear-gradient(45deg, #000 37%, transparent 37%, transparent 63%, #000 63%),
+    linear-gradient(-45deg, #000 37%, transparent 37%, transparent 63%, #000 63%);
+  mask:
+    linear-gradient(45deg, #000 37%, transparent 37%, transparent 63%, #000 63%),
+    linear-gradient(-45deg, #000 37%, transparent 37%, transparent 63%, #000 63%);
+  -webkit-mask-composite: source-in; mask-composite: intersect; }
 .cell-unknown { background: var(--ink-faint); }
 
 /* The OVERTURN — one orchestrated moment staged as VAR: on-field 'clean' -> review -> fork.
@@ -183,6 +191,15 @@
 .ov-1 { animation-delay: 0ms; }
 .ov-2 { animation-delay: 120ms; }
 .ov-3 { animation-delay: 250ms; }
+/* the ringed pivot cell SETTLES exactly as ov-3 fires ("overturned to BREACHED"): the verdict
+   sentence and the turn it ruled on land together — the VAR ruling made spatial, not just typographic.
+   Shares the focal's replayKey, so it re-fires in sync with the banner on focus / replay-to-pivot. */
+@keyframes pivot-settle {
+  0%, 42% { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--fail) 30%, transparent); opacity: .6; }
+  58%     { box-shadow: 0 0 0 3px var(--fail); opacity: 1; }
+  100%    { box-shadow: 0 0 0 1.5px var(--fail); opacity: 1; }
+}
+.pivot-ring { animation: pivot-settle 560ms ease-out both; }
 
 /* ============================================================
    MARKETING LANDING — Latticly-style surface, theme-aware.
