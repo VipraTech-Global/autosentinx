@@ -23,6 +23,8 @@ aarav-live/state.demo.json
 aarav-live/events.demo.jsonl
 aaravresults1.demo.md
 aarav-live/captures/guided-run-*/run.log
+# demo videos are large (tens of MB) — keep them LOCAL for watching, out of git
+aarav-live/captures/**/*.webm
 
 # --- Local planning/design docs (not part of the shipped code) ---
 BUILD-APPROACH.md
