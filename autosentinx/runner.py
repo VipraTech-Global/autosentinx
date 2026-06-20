@@ -85,6 +85,13 @@ class Runner:
         """Rotate borrowers to dodge per-contact daily-attempt limits."""
         return self.s.aarav_contact_start + (i % max(1, self.s.aarav_contact_count))
 
+    def _recon_contacts(self) -> list[int]:
+        """Candidate contacts for recon to try in order — rotating past DNC/window-blocked ones so the
+        scouting probe actually runs (a single fixed contact is frequently blocked). Best-effort; capped
+        at the same reach as _next_startable so recon finds a startable contact when the plays can."""
+        n = max(1, min(12, self.s.aarav_contact_count))
+        return [self._contact_for(i) for i in range(n)]
+
     async def _next_startable(self, target, max_tries: int = 12) -> tuple[int, dict]:
         """Rotate to the next contact AARAV will actually start a session for (skip DNC/blocked)."""
         last: dict = {}
@@ -109,7 +116,7 @@ class Runner:
         try:
             await target.connect()
             try:
-                recon = await Recon(target, self.llm, self._contact_for(0)).profile()
+                recon = await Recon(target, self.llm, self._recon_contacts()).profile()
                 self._idx += 1
                 log.info("recon: %s", recon.notes)
             except Exception as e:  # noqa: BLE001
@@ -172,7 +179,7 @@ class Runner:
         try:
             await target.connect()
             try:
-                recon = await Recon(target, self.llm, self._contact_for(0)).profile()
+                recon = await Recon(target, self.llm, self._recon_contacts()).profile()
                 self._idx += 1
             except Exception as e:  # noqa: BLE001
                 log.warning("recon failed: %s", e)
@@ -239,7 +246,7 @@ class Runner:
         try:
             await target.connect()
             try:
-                recon = await Recon(target, self.llm, self._contact_for(0)).profile()
+                recon = await Recon(target, self.llm, self._recon_contacts()).profile()
                 self._idx += 1
             except Exception as e:  # noqa: BLE001
                 log.warning("recon failed: %s", e)

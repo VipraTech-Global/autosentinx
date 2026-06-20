@@ -30,16 +30,23 @@ class ReconProfile(BaseModel):
 
 
 class Recon:
-    def __init__(self, target: AaravTarget, llm: LLM, contact_id: int) -> None:
+    def __init__(self, target: AaravTarget, llm: LLM, contact_id: "int | list[int]") -> None:
         self.target = target
         self.llm = llm
-        self.contact_id = contact_id
+        # accept one contact or a candidate list — rotate past DNC/window-blocked contacts so recon
+        # actually probes (the first fixed contact is often blocked while later ones are startable)
+        self.contact_ids = [contact_id] if isinstance(contact_id, int) else list(contact_id)
 
     async def profile(self) -> ReconProfile:
-        d = await self.target.start_session(self.contact_id)
-        sid = d.get("session_id")
-        name = d.get("contact_name", "")
-        if not sid:  # start blocked (window/limit) — skip recon gracefully
+        sid = None
+        name = ""
+        for cid in self.contact_ids:
+            d = await self.target.start_session(cid)
+            sid = d.get("session_id")
+            name = d.get("contact_name", "") or name
+            if sid:
+                break
+        if not sid:  # all candidates blocked (window/limit) — skip recon gracefully
             return ReconProfile(contact_name=name, notes=["recon skipped: target blocked the start"])
         replies: list[str] = []
         try:

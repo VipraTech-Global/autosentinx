@@ -132,6 +132,18 @@ def test_recon_populated_when_present():
     assert "links" not in rc  # engine does not derive intel→objective threads (honest omission)
 
 
+def test_recon_blocked_reports_skipped_not_hollow_done():
+    # a recon profile that exists but probed nothing (target blocked the start) → honest 'skipped', never hollow 'done'
+    blocked = json.dumps({"contact_name": "Mohammed Akhtar", "discloses_ai": None, "stays_in_scope": None,
+                          "refusal_style": "", "notes": ["recon skipped: target blocked the start"], "steps": []})
+    cat = _Cat([_spec("disclosure.undisclosed-ai", "compliance", "high",
+                      [("RBI-FPC", "FREE-AI", "x", 3)])])
+    run = NS(id="ER-B", target_url="https://t", status="completed", num_attempts=1, roe=json.dumps({"budget": 1}),
+             recon=blocked, approved_at=None, created_at=_dt.datetime(2026, 6, 21))
+    rv = RunViewProjection(cat, _Lib()).run_runview(run, [{"attempt": _attempt(), "turns": []}], json.loads(run.roe))
+    assert rv["recon"]["status"] == "skipped" and "blocked" in rv["recon"]["reason"]
+
+
 def test_d8_split_and_paired_idx():
     turns = [_turn(0, "Context", "Refusal", False)]
     rv = _project([{"attempt": _attempt(id=2, objective_slug="memory-poison.persisted-false-fact",
@@ -186,6 +198,6 @@ def test_unknown_outcome_degrades_not_held():
 
 if __name__ == "__main__":
     test_outcome_golden(); test_runview_shape_matches_fixture(); test_d8_split_and_paired_idx(); test_error_and_blocked_rows_render()
-    test_recon_skipped_when_absent(); test_recon_populated_when_present()
+    test_recon_skipped_when_absent(); test_recon_populated_when_present(); test_recon_blocked_reports_skipped_not_hollow_done()
     test_fairness_outcome_not_error(); test_unknown_outcome_degrades_not_held()
     print("ALL CONTRACT-GATE TESTS PASS")

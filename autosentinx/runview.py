@@ -147,6 +147,15 @@ class RunViewProjection:
             r = json.loads(raw)
         except Exception:  # noqa: BLE001
             return {"status": "skipped", "reason": "recon profile unreadable"}
+        steps = [{"probe": s.get("probe"), "reply": s.get("reply"), "note": s.get("note")}
+                 for s in (r.get("steps") or [])]
+        if not steps:
+            # recon ran but probed nothing (target blocked the start session / empty fallback) — honest
+            # 'skipped' with the cause, never a hollow 'done' profile (same never-fabricate principle as CR-P2)
+            notes = r.get("notes") or []
+            reason = next((n for n in notes if "skip" in n.lower()), None) or \
+                "recon did not complete — target blocked the start session"
+            return {"status": "skipped", "reason": reason, "contact": r.get("contact_name") or ""}
         return {
             "status": "done",
             "contact": r.get("contact_name") or "",
@@ -156,8 +165,7 @@ class RunViewProjection:
                 "refusalStyle": r.get("refusal_style") or "",
                 "notes": r.get("notes") or [],
             },
-            "steps": [{"probe": s.get("probe"), "reply": s.get("reply"), "note": s.get("note")}
-                      for s in (r.get("steps") or [])],
+            "steps": steps,
         }
 
     def _play(self, attempt, turns, spec, pillar, fw, max_turns, incident) -> dict:
