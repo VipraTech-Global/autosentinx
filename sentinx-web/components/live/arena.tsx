@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import {
   type RunView, type PlayView, type Band, type CellKind,
-  bands, pickFocus, telegraph, breachPointPhase, judgeMeta, outcomeToken, blockCause,
+  bands, pickFocus, telegraph, breachPointPhase, judgeMeta, outcomeToken, blockCause, humanize,
 } from "@/lib/runview";
 import type { Severity } from "@/lib/types";
 
@@ -35,7 +35,7 @@ function Sev({ s }: { s: Severity }) {
 
 // the frame-ribbon cell — ink-only by SHAPE; yielded is a STRUCK (additive) cell, not empty.
 function Cell({ k, lg }: { k: CellKind; lg?: boolean }) {
-  const titles: Record<CellKind, string> = { held: "held", wavered: "wavered", yielded: "the agent gave the line (advisory)", unknown: "unknown" };
+  const titles: Record<CellKind, string> = { held: "held", wavered: "wavered", yielded: "the agent gave the line (advisory)", unknown: "unknown", pending: "estimated — a turn that may yet be played (up to the run's max turns)" };
   return <span className={`cell cell-${k}${lg ? " cell-lg" : ""}`} title={titles[k]} />;
 }
 
@@ -65,10 +65,13 @@ function VerdictCap({ p }: { p: PlayView }) {
   return <span className="text-[11px] mono">{o}</span>;
 }
 
-// one ladder row (the frame-ribbon, compact)
-function Ribbon({ p, focused, onFocus }: { p: PlayView; focused: boolean; onFocus: () => void }) {
+// one ladder row (the frame-ribbon, compact). `estimate` = the run's max turns → grey "yet to come" slots.
+function Ribbon({ p, focused, onFocus, estimate }: { p: PlayView; focused: boolean; onFocus: () => void; estimate?: number }) {
   const fail = p.verdict?.productOutcome === "FAIL";
   const crit = fail && p.severity === "critical";
+  const degraded = p.status === "blocked" || p.status === "error";
+  // grey estimate slots = (max turns) − (turns so far), shown only while the play hasn't finished
+  const pending = !degraded && p.status !== "done" && estimate ? Math.max(0, estimate - p.turns.length) : 0;
   return (
     <button onClick={onFocus} aria-pressed={focused}
       className={`group w-full text-left rounded-md border px-3 py-2 transition-colors ${focused ? "border-brand bg-brand-soft/30" : "border-border bg-surface hover:border-brand"}`}
@@ -77,21 +80,27 @@ function Ribbon({ p, focused, onFocus }: { p: PlayView; focused: boolean; onFocu
       <div className="flex items-center gap-2 flex-wrap">
         {/* severity is the objective's property; on an UN-assessed row mute it so a never-run CRITICAL doesn't pull the eye on a calm board (critic round-4 P2) */}
         <span style={p.status === "error" || p.status === "blocked" ? { opacity: 0.4 } : undefined}><Sev s={p.severity} /></span>
-        <span className="mono text-xs text-ink truncate max-w-[210px]">{p.id}</span>
+        {/* human-readable objective; raw slug kept on hover (internal reader) */}
+        <span className="text-[12.5px] font-medium text-ink truncate max-w-[230px]" title={p.id}>{humanize(p.id)}</span>
         {p.severity === "critical" && p.verdict?.productOutcome === "PASS" ? <Award size={13} className="text-metric" /> : null}
         <span className="flex-1" />
         <VerdictCap p={p} />
       </div>
       <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
-        {p.turns.length ? p.turns.map((t, i) => <Cell key={i} k={t.cell} />)
-          : (p.status === "blocked" || p.status === "error") ? <span className="text-[10px] mono text-ink-faint border-b border-dashed border-ink-faint">— not assessed —</span>
-          : <span className="text-[10px] mono text-ink-faint">queued…</span>}
+        {degraded
+          ? <span className="text-[10px] mono text-ink-faint border-b border-dashed border-ink-faint">— not assessed —</span>
+          : (p.turns.length === 0 && pending === 0)
+            ? <span className="text-[10px] mono text-ink-faint">queued…</span>
+            : <>
+                {p.turns.map((t, i) => <Cell key={i} k={t.cell} />)}
+                {Array.from({ length: pending }, (_, i) => <Cell key={`pend-${i}`} k="pending" />)}
+              </>}
       </div>
     </button>
   );
 }
 
-function BandView({ b, focusIdx, onFocus }: { b: Band; focusIdx: number | null; onFocus: (i: number) => void }) {
+function BandView({ b, focusIdx, onFocus, estimate }: { b: Band; focusIdx: number | null; onFocus: (i: number) => void; estimate?: number }) {
   // Assessed verdicts LEAD; degraded (tunnel-lost) plays fold into one quiet group so a
   // partial run reads as a calm instrument, not "the run broke" (critic round-4 P1).
   const [openDegraded, setOpenDegraded] = useState(false);
@@ -106,14 +115,14 @@ function BandView({ b, focusIdx, onFocus }: { b: Band; focusIdx: number | null; 
       </div>
       {b.plays.length ? (
         <div className="grid gap-1.5">
-          {live.map((p) => <Ribbon key={p.idx} p={p} focused={focusIdx === p.idx} onFocus={() => onFocus(p.idx)} />)}
+          {live.map((p) => <Ribbon key={p.idx} p={p} focused={focusIdx === p.idx} onFocus={() => onFocus(p.idx)} estimate={estimate} />)}
           {degraded.length ? (
             <div className="rounded-md border border-dashed border-border bg-surface-sunk/30">
               <button onClick={() => setOpenDegraded((v) => !v)} className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[11px] mono text-ink-faint hover:text-ink-muted">
                 <ChevronRight size={12} className="transition-transform" style={openDegraded ? { transform: "rotate(90deg)" } : undefined} />
                 {degraded.length} not assessed — target unreachable
               </button>
-              {openDegraded ? <div className="grid gap-1.5 px-1.5 pb-1.5">{degraded.map((p) => <Ribbon key={p.idx} p={p} focused={focusIdx === p.idx} onFocus={() => onFocus(p.idx)} />)}</div> : null}
+              {openDegraded ? <div className="grid gap-1.5 px-1.5 pb-1.5">{degraded.map((p) => <Ribbon key={p.idx} p={p} focused={focusIdx === p.idx} onFocus={() => onFocus(p.idx)} estimate={estimate} />)}</div> : null}
             </div>
           ) : null}
         </div>
@@ -127,7 +136,7 @@ function CombatantHeader({ p }: { p: PlayView }) {
     <div className="flex items-start gap-3 flex-wrap px-4 py-3 border-b border-border">
       <div className="flex-1 min-w-[180px]">
         <div className="font-semibold text-[15px] text-ink">{p.title}</div>
-        <div className="mono text-[11px] text-ink-faint">{p.id} · {p.pillar}</div>
+        <div className="text-[11px] text-ink-faint" title={p.id}>{humanize(p.id)} · {p.pillar}</div>
         <div className="flex gap-1.5 mt-1.5 flex-wrap items-center">
           <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-[3px] border" style={{ color: `var(--sev-${p.severity}-text)`, borderColor: `var(--sev-${p.severity})` }}><Sev s={p.severity} />{p.severity}</span>
           {(p.regulation ?? []).map((r, i) => <span key={i} className="text-[10px] mono text-brand bg-brand-soft rounded-[3px] px-1.5 py-0.5">{r.framework} {r.control_id}</span>)}
@@ -340,7 +349,7 @@ export default function Arena({ run, onDrillToV3 }: { run: RunView; onDrillToV3?
 
       {/* two-column: ladder (left) ↔ focal (right) */}
       <div className="grid lg:grid-cols-[minmax(430px,500px)_1fr] gap-5 items-start">
-        <div>{bs.map((b) => <BandView key={b.pillar} b={b} focusIdx={focusIdx} onFocus={focus} />)}</div>
+        <div>{bs.map((b) => <BandView key={b.pillar} b={b} focusIdx={focusIdx} onFocus={focus} estimate={run.engine?.maxTurns} />)}</div>
         <div className="lg:sticky lg:top-16">
           <div className="rounded-xl border border-border bg-surface overflow-hidden">
             {focal ? (

@@ -12,7 +12,20 @@ export type TurnLabel = "Succeed" | "Comply" | "Refusal" | "Unknown";
 export type ProductOutcome = "PASS" | "FAIL" | "RISK" | "ERROR" | "BLOCKED";
 
 /** The per-turn defence cell — advisory in-call classifier label, NOT the ruling. */
-export type CellKind = "held" | "wavered" | "yielded" | "unknown";
+export type CellKind = "held" | "wavered" | "yielded" | "unknown" | "pending"; // 'pending' = estimated-remaining (UI only)
+
+const ACRONYMS: Record<string, string> = { ai: "AI", pii: "PII", kyc: "KYC", emi: "EMI", otp: "OTP", trai: "TRAI", dnc: "DNC", sms: "SMS", fir: "FIR", llm: "LLM" };
+/** Humanize an objective slug WITHOUT losing nuance: "guardrail.policy-override" → "Guardrail — policy override".
+ *  The raw slug stays available (tooltip / technical refs) for the internal reader. */
+export function humanize(slug: string): string {
+  if (!slug) return slug;
+  const words = (s: string) => s.split("-").map((w) => ACRONYMS[w.toLowerCase()] ?? w).join(" ");
+  const [cat, ...rest] = slug.split(".");
+  const head = words(cat);
+  const cap = head.charAt(0).toUpperCase() + head.slice(1);
+  const tail = rest.join(".");
+  return tail ? `${cap} — ${words(tail)}` : cap;
+}
 
 export interface TurnView {
   idx: number;

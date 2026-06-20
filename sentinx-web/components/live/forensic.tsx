@@ -3,7 +3,7 @@
 // model-named judges, detectors, recon, provenance, debug internals + Re-judge / Judge-diff.
 import { useState } from "react";
 import { ArrowUp, Crosshair, CornerDownRight, Shield, Scale, RotateCcw, GitCompareArrows, Radar, Bug, FileText, Check, AlertTriangle } from "lucide-react";
-import { type RunView, type PlayView, judgeMeta, outcomeToken } from "@/lib/runview";
+import { type RunView, type PlayView, judgeMeta, outcomeToken, humanize } from "@/lib/runview";
 
 const labelTri = (v?: boolean) => (v === true ? "YES" : v === false ? "NO" : "unclear");
 
@@ -39,7 +39,7 @@ export default function Forensic({ run, play, onRollUp }: { run: RunView; play: 
         <div className="flex items-start gap-3 flex-wrap px-4 py-3 border-b border-border">
           <div className="flex-1 min-w-[220px]">
             <div className="font-semibold text-[16px] text-ink">{play.title}</div>
-            <div className="mono text-[11px] text-ink-faint">{play.id} · {play.pillar} · severity {play.severity}</div>
+            <div className="text-[11px] text-ink-faint" title={play.id}>{humanize(play.id)} · {play.pillar} · severity {play.severity}</div>
           </div>
           <div className="text-right pl-3 border-l border-border">
             <div className="text-[9.5px] uppercase tracking-wide text-ink-faint">attacker</div>
