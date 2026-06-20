@@ -9,6 +9,7 @@
 import asyncio
 import collections
 import json
+import os
 import subprocess
 import sys
 from contextlib import asynccontextmanager
@@ -122,9 +123,41 @@ async def health():
     return out
 
 
-async def _run_approved(run_id: str, roe: dict) -> None:
-    """Governance-gated dispatch: audit started → run the campaign per its RoE → audit completed."""
+async def _roe_launch_check(run_id: str, roe: dict, operator: str) -> None:
+    """Launch-time RoE policy gate (P3, decision 17). Builds the manifest from the approved request,
+    evaluates operator/target/scope + sandbox-tenant attestation, and audits the decision. ADVISORY by
+    default (logs + proceeds); set ROE_ENFORCE=1 to fail-closed (raise RoEDenied before any egress).
+
+    Until /scan collects a sandbox attestation, the attestation is empty → the check records an advisory
+    'target not attested as a sandbox tenant' finding without blocking the scan."""
+    from autosentinx.roe import (AlwaysClear, RoEDenied, RoEManifest, SandboxAttestation,
+                                 decide_launch)
+    tgt = roe.get("target") or ""
+    decision = decide_launch(
+        RoEManifest(operator=operator, target_id=tgt, allowed_techniques=set(roe.get("techniques") or [])),
+        SandboxAttestation(target_id=tgt),          # no attestation collected yet → advisory
+        AlwaysClear(), operator=operator, target_id=tgt,
+    )
+    enforce = os.environ.get("ROE_ENFORCE") in ("1", "true", "True")
+    await append_event("roe.launch_checked", run_id=run_id, actor=operator,
+                       detail={"allow": decision.allow, "reason": decision.reason,
+                               "enforce": enforce, "target": tgt})
+    if not decision.allow:
+        if enforce:
+            raise RoEDenied(decision.reason)        # fail-closed before any egress
+        print(f"[roe] advisory: launch check '{decision.reason}' "
+              f"(set ROE_ENFORCE=1 to block)", file=sys.stderr)
+
+
+async def _run_approved(run_id: str, roe: dict, operator: str = "operator") -> None:
+    """Governance-gated dispatch: audit started → RoE launch check → run the campaign → audit completed."""
     await append_event("scan.started", run_id=run_id, detail={"strategy": roe.get("strategy")})
+    try:
+        await _roe_launch_check(run_id, roe, operator)
+    except Exception as e:  # noqa: BLE001  — RoEDenied (enforce mode) aborts fail-closed before egress
+        await store.set_run_status(run_id, "failed", 0, 0)
+        await append_event("scan.blocked", run_id=run_id, actor=operator, detail={"reason": str(e)[:200]})
+        return
     runner = Runner()
     strat = roe.get("strategy", "ucb")
     csrt_on = roe.get("csrt", "off") in ("on", "both")
@@ -204,7 +237,7 @@ async def approve_run(run_id: str, background: BackgroundTasks, approver: str = 
         r.status = "running"; r.approved_by = approver; r.approved_at = _now()
         sess.add(r); await sess.commit()
     await append_event("scan.approved", run_id=run_id, actor=approver, detail={"strategy": roe.get("strategy")})
-    background.add_task(_run_approved, run_id, roe)
+    background.add_task(_run_approved, run_id, roe, approver)
     return {"run_id": run_id, "status": "running", "approved_by": approver}
 
 

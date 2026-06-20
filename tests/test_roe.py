@@ -118,3 +118,11 @@ def test_gateway_roe_produces_live_killswitch_guard(tmp_path):
     ks.engage()                                 # trip it AFTER building the RoE
     bad, why = roe.validate()
     assert not bad and "kill-switch" in why      # re-read live → now denied
+
+
+def test_empty_attestation_drives_advisory_deny_used_by_app_launch_check():
+    # app._roe_launch_check builds an empty SandboxAttestation until /scan collects one;
+    # decide_launch must then deny (advisory) rather than silently allow an unattested target.
+    d = decide_launch(_manifest(), SandboxAttestation(target_id=TGT), AlwaysClear(),
+                      operator=OP, target_id=TGT)
+    assert not d.allow and "attestation" in d.reason
