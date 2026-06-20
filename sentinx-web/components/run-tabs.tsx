@@ -2,14 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/cn";
+import { getRole, canSeeLive, type Role } from "@/lib/role";
 
-/** Thin in-run top nav: switch between Overview (exec summary) and Findings.
+/** Thin in-run top nav: Overview (exec summary) · Live (Admin/Security only) · Findings.
  *  Active tab is a filled Azure-Cobalt pill so it's unmistakable. */
 export function RunTabs({ runId, findingsCount }: { runId: string; findingsCount?: number }) {
   const pathname = usePathname();
+  const [role, setRoleState] = useState<Role | null>(null); // null until mounted → no hydration mismatch
+  useEffect(() => setRoleState(getRole()), []);
   const tabs = [
     { href: `/runs/${runId}`, label: "Overview", exact: true, count: undefined as number | undefined },
+    // V2/V3 restricted to Admin/QA + Security — only surface Live for them (post-mount)
+    ...(role && canSeeLive(role) ? [{ href: `/runs/${runId}/arena`, label: "Live", exact: false, count: undefined as number | undefined }] : []),
     { href: `/runs/${runId}/findings`, label: "Findings", exact: false, count: findingsCount },
   ];
 

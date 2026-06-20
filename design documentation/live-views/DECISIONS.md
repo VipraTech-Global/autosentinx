@@ -50,7 +50,19 @@
   - **Trigger to un-park:** **V1 built → `OPEN-LV1`/`OPEN-LV2` resolved → V2/V3 finalized → `runview.ts` frozen** ⇒ then build the port (Phase 1 → 2 → 3 per `ENGINE-PORT-PLAN.md`).
   - **Notes for whoever builds it later:** (a) the canonical-rule fix (`EP-5`, `outcome.ts → outcome.py`) is **shape-independent** so it *could* land early, but it only bites the borderline single-judge RISK band `[0.3, 0.55)` — captured runs are clear-cut, so it can wait too; (b) reconcile against **`feat/security-governance-keystones`** (it edits `runner.py` and adds an `roe.py` *policy* module — distinct from the `Run.roe` JSON config the port writes; expect a `runner.py` line-anchor shift).
 
+## Navigation, shell & role-based access (2026-06-20)
+
+- **D-LV27 · Unified run shell + persona role switch + V2/V3 access restriction.** *(user-directed, 2026-06-20; recommendations I made on the unanswered shell/nav/V3 questions, approved to proceed.)*
+  - **Shell = hybrid.** The live views get a **shared `RunNav` top bar** (wordmark→home, run id·target, theme — matching the app's `TopBar` chrome) so V2/V3 stop feeling like a separate app, **plus a thin live sub-bar** for live-only controls (zoom · Arena⇄Processing · sample switcher · LIVE/dev-bridge badges · intensity). Fixes the shell/run-identity/nav-model drift while keeping the instrument character (`D-LV10`).
+  - **Nav model = one tab set:** `Overview · Live · Findings · Report` (in `RunNav` and the existing `RunTabs`). The zoom (Glance·Arena·Detail = V1/V2/V3) and the **Arena⇄Processing** toggle live under Live.
+  - **Role switch (persona → home).** A "viewing as" picker (Admin/QA · Security · Exec · Compliance, `lib/role.ts`) lands each role on its home per personas §ownership: **Admin→Arena, Security→Forensic, Exec→Overview, Compliance→Findings**; remembered in localStorage.
+  - **ACCESS: V2 (Arena) + V3 (Forensic) are RESTRICTED to Admin/QA + Security.** All other personas see Overview/Findings/Report/Processing but **not** the live duel — the `Live` tab is hidden for them and the arena/forensic pages show an in-place "restricted" notice (`canSeeLive`). *(user, 2026-06-20 — supersedes the `02-personas.md §ownership` "reads/watches" rows that had Compliance/Exec reading V2.)*
+  - **V2↔C4 = V2 primary, C4 a temporary "Processing ↗" toggle** (`OPEN-LV1` still open). **V3↔V3 = prev/next + a play picker** in the V3 sub-bar (step between forensics, back to Arena).
+  - **Intensity** (`D-LV25`) is now **echoed on V2** (sub-bar chip + provenance footer) and **plumbed** through the demo bridge (`SENTINX_INTENSITY`); the real backend plumb stays `EP-11`.
+  - **Still drifting (deferred, `OPEN-LV4`):** the Arena/Forensic **body** still hand-rolls cards/buttons rather than the shared `ui.tsx` kit, and runs wider (`~1340px`) than the app's `max-w-6xl`. Chrome is unified; the body kit/width convergence is follow-up polish.
+
 ## §Open (interview continuing)
+- **OPEN-LV4 · Body component-kit + width convergence.** The live-views' chrome now matches the app (`D-LV27`), but the Arena/Forensic **body** still uses bespoke divs/inline styles (not `Card`/`Button`) and a wider column than `max-w-6xl`. Converge for full one-product consistency, or keep the wider instrument density deliberately. *(deferred 2026-06-20)*
 
 - **OPEN-LV1 · The customer's live screen — V1 vs canonical C4 Processing.** Keep the canonical **C4 Processing** for the customer for now; the relationship between **V1** and **C4** is **UNRESOLVED** — candidates: a customer **toggle V1 ⇄ C4**, V1 as the default with C4 on demand, or V1 eventually superseding C4. To revisit. *(Q4)*
 - **OPEN-LV2 · Demo mode of V2.** Whether V2 keeps a **demo/persuasion mode** (the replay + narration-paced timeline) as a first-class mode of the QA instrument is **UNRESOLVED**. *(Q6)*

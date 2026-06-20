@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import Arena from "@/components/live/arena";
 import { fromStateJson, type RunView } from "@/lib/runview";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { RunNav } from "@/components/live/run-nav";
+import { getRole, canSeeLive, screenHref, type Role } from "@/lib/role";
 
 const SAMPLES = ["both-pillar-live", "both-pillar-full", "recon-demo", "live-8play", "fixture-3play", "midrun", "degraded"] as const;
 
@@ -36,42 +37,54 @@ export default function ArenaPage() {
     return () => { active = false; if (iv) clearInterval(iv); };
   }, [data, params?.id, livePoll]);
 
+  // access gate: V2/V3 restricted to Admin/QA + Security (role read client-side; null until mounted)
+  const [role, setRoleState] = useState<Role | null>(null);
+  useEffect(() => setRoleState(getRole()), []);
+  const runId = String(params?.id ?? "ER-LIVE");
+  const restricted = role !== null && !canSeeLive(role);
+
   return (
     <div className="min-h-dvh bg-bg text-ink">
-      <header className="sticky top-0 z-20 flex items-center gap-3 px-5 h-14 border-b border-border bg-bg/90 backdrop-blur">
-        <span className="flex items-center gap-2 font-semibold text-[15px]">
-          <span className="w-4 h-4 rounded-full border-[1.5px] border-brand relative">
-            <span className="absolute inset-[-1.5px] rounded-full border-t-[1.5px] border-r-[1.5px] border-brand" style={{ borderTopColor: "transparent", animation: "phase-pulse 2.4s linear infinite" }} />
-          </span>
-          SENTIN<span className="text-brand">X</span>
-          <span className="text-ink-faint text-[11px] font-normal">· arena (view 2)</span>
-        </span>
-        {run ? <span className="mono text-[12px] text-ink-muted bg-surface border border-border rounded-md px-2 py-1 truncate max-w-[280px]">{run.id} · {run.target || "—"}</span> : null}
+      <RunNav runId={runId} current="live" runLabel={run?.id} target={run?.target || undefined} data={data} />
+      {restricted ? (
+        <div className="max-w-[620px] mx-auto mt-24 text-center px-6">
+          <div className="text-[15px] font-semibold text-ink">The live duel is restricted</div>
+          <div className="mono text-[12.5px] text-ink-muted mt-2">View 2 (Arena) and View 3 (Forensic) are visible only to <b className="text-ink">Admin / QA</b> and <b className="text-ink">Security</b>. Switch role above, or:</div>
+          <a href={screenHref("overview", runId)} className="inline-block mt-4 text-[12px] mono text-brand hover:underline">go to your Overview →</a>
+        </div>
+      ) : (
+      <>
+
+      {/* Live sub-bar — the live-duel-specific controls (zoom · Arena⇄Processing · sample · badges) */}
+      <div className="sticky top-14 z-10 flex items-center gap-2.5 px-5 min-h-11 py-1.5 border-b border-border bg-surface/60 backdrop-blur flex-wrap">
+        <span className="text-ink-faint text-[10.5px] mono uppercase tracking-[0.13em]">live duel</span>
+        {run?.intensity ? <span className="mono text-[11px] text-ink-muted">intensity · <span className="text-ink">{run.intensity}</span></span> : null}
         {livePoll && run ? (
           run.status === "done" || run.status === "failed" || run.status === "blocked"
             ? <span className="mono text-[11px] text-ink-faint inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-ink-faint" />run complete</span>
             : <span className="mono text-[11px] inline-flex items-center gap-1.5" style={{ color: "var(--fail-text)" }}><span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--fail)" }} />LIVE</span>
         ) : null}
-        {/* honesty: this ?live=1 path is a DEV BRIDGE (engine real; auth+scan mocked) previewing the
-            parked engine port D-LV26 — it must never be mistaken for the production funnel (review P1-3) */}
         {livePoll ? <span className="mono text-[10px] uppercase tracking-wide text-warn-text border border-warn-text/40 rounded px-1.5 py-0.5" title="Dev bridge: the engine run is real, but login + scan are mocked and the ROE-approval gate is skipped. Previews the parked engine port (D-LV26).">dev bridge</span> : null}
         <span className="flex-1" />
-        {/* sample switcher (build/test aid) */}
-        <select value={data} onChange={(e) => router.replace(`?data=${e.target.value}`)} className="mono text-[11px] bg-surface border border-border rounded-md px-2 py-1 text-ink-muted">
-          {SAMPLES.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
-        {/* zoom control (V1·V2·V3) — V1 deferred (RoadmapLock) */}
+        {/* zoom: Glance(V1·deferred) · Arena(V2) · Detail(V3) */}
         <span className="inline-flex border border-border rounded-md overflow-hidden text-[11px] mono">
           <span className="px-2.5 py-1 text-ink-faint cursor-not-allowed" title="V1 Glance — coming soon">Glance</span>
           <span className="px-2.5 py-1 bg-brand-soft text-brand border-l border-border">Arena</span>
           <button className="px-2.5 py-1 text-ink-muted border-l border-border hover:bg-surface-sunk" onClick={() => run && router.push(`/runs/${params?.id}/arena/${run.plays.find((p) => p.status === "done")?.idx ?? 0}/forensic?data=${data}`)}>Detail</button>
         </span>
-        <ThemeToggle />
-      </header>
+        {/* Arena ⇄ Processing — the classic live screen (C4); temporary, OPEN-LV1 */}
+        <button className="text-[11px] mono text-ink-muted border border-border rounded-md px-2.5 py-1 hover:border-brand inline-flex items-center gap-1" title="the classic Processing screen (C4) — temporary while V2-vs-C4 is unresolved (OPEN-LV1)" onClick={() => router.push(`/runs/${params?.id}/processing`)}>Processing ↗</button>
+        {/* sample switcher (build/test aid, OPEN-LV3) */}
+        <select value={data} onChange={(e) => router.replace(`?data=${e.target.value}`)} className="mono text-[11px] bg-surface border border-border rounded-md px-2 py-1 text-ink-muted">
+          {SAMPLES.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </div>
 
       {err ? <div className="max-w-[700px] mx-auto mt-20 text-center mono text-fail-text">{err}</div> : null}
       {!run && !err ? <div className="max-w-[700px] mx-auto mt-20 text-center mono text-ink-faint">loading {data}…</div> : null}
       {run ? <Arena run={run} onDrillToV3={(idx) => router.push(`/runs/${params?.id}/arena/${idx}/forensic?data=${data}`)} /> : null}
+      </>
+      )}
     </div>
   );
 }
