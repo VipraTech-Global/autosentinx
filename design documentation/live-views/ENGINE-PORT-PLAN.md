@@ -280,3 +280,35 @@ Ordered so the **frontend can switch its RunView adapter off the prototype file 
 - **Contract (target, unchanged):** `sentinx-web/lib/runview.ts:9-91, 97-175, 180`.
 - **FE wiring to switch:** `sentinx-web/lib/api.ts:39-44, 70-72`; `app/runs/[id]/arena/page.tsx:21-23`; `…/forensic/page.tsx:19-21`; `lib/intensity.ts:17-24`.
 - **Decisions:** `live-views/DECISIONS.md:30, 32, 34-35` (D-LV22/24/25/dep4); `live-views/03-mapping.md:9-17, 38-41` (M14-M22, dep2/3/4); `DECISIONS.md:12-13, 18, 20, 25, 47-48` (D-Q4/10/12/13/15/19/20).
+
+---
+
+## Post-implementation — execution status, adversarial review & deferred follow-ups (2026-06-21)
+
+The plan was executed in **5 vertical waves** (BE projection → FE live slice → intensity-through → recon migration), then hardened through three adversarial gates. All five waves are implemented, unit-tested (10 contract-gate tests), the `run.recon` migration (`9a3f1c0d4e2b`) is applied, and the engine port is **confirmed working end-to-end** against the live AARAV target (real `/scan` → `/approve` → live engine Arena → findings → audit report).
+
+### Adversarial gates run
+1. **Code review** (multi-agent, per-finding refutation) over `933e508..HEAD` → 4 confirmed fixes (1 P1 fairness-outcome, 2 P2 unknown-degrade + FE first-load error, 1 P3 persona). Commit `d6b3a6a`.
+2. **Live HIGH guided run** (Playwright, landing → dial HIGH → approve → live → findings → report) on a real run, plus a real **breach exemplar** (`b0c3f258` FAILED post-opt-out-contact + no-human-escalation, score 0.967, with gate-delta).
+3. **Composite-SME multi-axis review + re-review** (AI-red-team × NBFC/RBI-compliance × GRC-UX):
+
+| Axis | Initial | After fixes |
+|---|---|---|
+| Engine-port correctness & contract fidelity | 88 | **91** |
+| Live-view comprehension (V2) | 81 | **88** |
+| Forensic evidentiary depth (V3) | 76 | **90** |
+| Findings & report integrity | 68 | **88** |
+| Governance, trust & data-handling | 62 | **78** |
+| Domain credibility (NBFC/RBI) | 79 | **86** |
+| **Overall** | **76** | **87** |
+
+SME fix pass (`d7dbb0e`) resolved the P0 + 5/7 P1 + several P2/P3 (report executed-vs-planned counts, in-progress banner, Open-risks relabel, populated Ended/Duration, rendered Regulation + Detectors, Attack-progression retitle, transcript legend, recon double-print, RISK scoreboard chip, status-gated "clean" headline, severity-muting on PASS rows, authenticated approver, honest PII attestation). Re-review confirmed 26 findings resolved, **no regressions**.
+
+### Deferred follow-ups (out of scope for this PR — documented, not bugs)
+- **Server-side role enforcement (RBAC).** The V2/V3 live-view restriction + the approve gate are enforced client-side / by an authenticated-but-role-unchecked token. The approver is now *accountable* (bound to the authenticated principal), but *who may approve / view* needs a role claim on the user/JWT + a server check. Architectural — requires a user→role model + assignment UI.
+- **AI-disclosure as a graded finding.** Recon reports `disclosesAi` as advisory intel; promoting non-disclosure to a scored objective is a taxonomy decision.
+- **Off-hours breach exemplar + broader DPDP coverage.** The permitted-hours play is now exercised (HELD); a breaching exemplar + wider control-family coverage are content/taxonomy work.
+- **Structured (CSV/JSON) findings export** for GRC ingestion — today the report is print-to-PDF only.
+- **`audience=customer` anonymization** is dead code on an internal-only endpoint; wire it to a verified role claim (ties to RBAC above) or remove.
+- **Pixel-unproven UI:** the new RISK chip + populated-detector rows are logic- and contract-test-verified but not yet captured in a screenshot (no fixture/real run hit `risks>0` or a firing detector).
+- **Vocabulary levelling:** `withstood` (pillar) / `held` (count) / `HELD` (verdict token) are level-appropriate but read as drift to a first-timer; a glossary/levelling pass would help.
