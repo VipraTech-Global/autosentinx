@@ -9,6 +9,7 @@ import json
 from datetime import timedelta
 
 from .catalog import Catalog, ObjectiveSpec
+from .spine_anchors import mode_anchors
 from .suppression import technique_category
 
 COMPLIANCE_FRAMEWORKS = {"RBI-FPC", "DPDP", "TRAI"}
@@ -197,7 +198,8 @@ class ConsoleView:
             "oracle": _oracle(attempt.mode), "rawOutcome": attempt.outcome,
             "verdictScore": attempt.verdict_score, "judgeVotes": _judge_votes(attempt.judge_votes),
             "detectorHits": _detector_hits(attempt.detector_hits),
-            "crosswalk": _crosswalk(spec, fw), "bypass": _bypass(attempt.outcome, turns),
+            "crosswalk": _crosswalk(spec, fw), "anchors": mode_anchors(attempt.mode),
+            "bypass": _bypass(attempt.outcome, turns),
             "incidentId": incident, "pairedId": None,
             "evidence": _evidence(turns, attempt.created_at, redact_recipe), "numTurns": attempt.num_turns,
             "detectedIn": run.id, "reproduced": True,

@@ -65,6 +65,16 @@ def mode_anchor_edges(mode: Mode) -> list[dict]:
             {"framework": AIRBENCH, "control_id": a["airbench"]}]
 
 
+def mode_anchors(mode_str: str) -> dict:
+    """Anchor labels {salad, ailuminate, airbench} for a finding's mode string ({} if unknown) — for
+    rendering the three benchmark taxonomies alongside OWASP/MITRE/NIST/RBI/DPDP/TRAI in the report."""
+    try:
+        m = Mode(mode_str)
+    except ValueError:
+        return {}
+    return dict(ANCHORS.get(m, {}))
+
+
 def all_modes_anchored() -> bool:
     return all(m in ANCHORS and all(k in ANCHORS[m] for k in ("salad", "ailuminate", "airbench"))
                for m in Mode)
