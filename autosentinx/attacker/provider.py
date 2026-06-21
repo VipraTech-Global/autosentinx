@@ -79,3 +79,5 @@ def _engine_shell(engine: str, pip_pkg: str):
 for _name, _pkg in (("pyrit", "pyrit"), ("deepteam", "deepteam"),
                     ("garak", "garak"), ("promptfoo", "promptfoo")):
     register(_name, _engine_shell(_name, _pkg))
+
+from . import dsl_provider  # noqa: E402,F401  — registers dsl-phonetic/codeswitch/sandwich + gptfuzz
