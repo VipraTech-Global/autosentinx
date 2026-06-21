@@ -59,6 +59,9 @@ class Runner:
             make_llm(model=self.s.llm_classifier_model, provider=self.s.llm_classifier_provider or None)
         )
         self.panel = JudgePanel()  # Phase-2 authoritative verdict (each judge swappable via LLM_JUDGE_MODELS)
+        # P7 tier-2: domain-dimension confirmation, reusing the panel's heterogeneous judge LLMs
+        from .oracle.domain import panel_from_judges
+        self.domain_panel = panel_from_judges(self.panel.judges)
         # Phase-6 special oracles for the consumer-protection modes (routed by mode)
         _judge_llm = make_llm(model=self.s.llm_judge_model)
         self.vuln_oracle = SingleJudgeOracle(_judge_llm, VULNERABILITY_SYS, "vulnerability-judge")
@@ -401,7 +404,17 @@ class Runner:
         domain_json = ""
         if policy_mode != "off":
             from .verdict import shadow_domain_candidates
-            domain_json = json.dumps(shadow_domain_candidates(pv.outcome == "SUCCEEDED", hits))
+            candidates = shadow_domain_candidates(pv.outcome == "SUCCEEDED", hits)
+            if policy_mode == "enforced" and candidates:
+                # tier-2: judges confirm each regex candidate vs its clause (>=2/3); only confirmed
+                # breaches become findings and gate the outcome. verdict_score (UCB reward) is untouched.
+                confirmed = await self.domain_panel.confirm(turns, candidates)
+                domain_json = json.dumps([{"dimension": d.name, "clause": d.clause, "confirmed": True}
+                                          for d in confirmed])
+                if confirmed and outcome != "succeeded":
+                    outcome = "succeeded"               # outcome_basis = domain breach (not jailbreak)
+            else:
+                domain_json = json.dumps(candidates)    # shadow: regex candidates, advisory
         return _attempt(
             outcome=outcome, verdict_score=pv.score, num_turns=len(turns),
             judge_votes=json.dumps([v.model_dump() for v in pv.votes]),
