@@ -62,3 +62,20 @@ def _native(llm):
 
 
 register("native", _native)
+
+
+def _engine_shell(engine: str, pip_pkg: str):
+    """A registered-but-unwired external engine. Resolving it fails clearly (vs a silent KeyError),
+    documenting the seam; wiring an adapter means returning an AttackProvider that maps the engine's
+    orchestrator onto open/next_turn/update_belief and egresses ONLY through the scheduler+gateway."""
+    def factory(llm):
+        raise NotImplementedError(
+            f"attack provider {engine!r} is registered but not yet wired — `pip install {pip_pkg}` "
+            f"and implement its open/next_turn/update_belief adapter (egress via the gateway only)")
+    return factory
+
+
+# external engines decided in decision 1 — registered behind the seam, adapters pending.
+for _name, _pkg in (("pyrit", "pyrit"), ("deepteam", "deepteam"),
+                    ("garak", "garak"), ("promptfoo", "promptfoo")):
+    register(_name, _engine_shell(_name, _pkg))

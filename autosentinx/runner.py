@@ -361,7 +361,12 @@ class Runner:
                 error=f"start blocked: {d.get('compliance_status')} — {d.get('compliance_reason', '')}"[:300],
             ), []
 
-        line = await self.attacker.open(spec, technique, persona, recon, belief, name, opening, rs.csrt)
+        # P6: resolve the attack provider this technique routes to (native = ComposableAttacker; external
+        # engines register behind the same open/next_turn/update_belief seam). Egress still goes only
+        # through `target` (the audited gateway) — providers never touch the target directly.
+        from .attacker.provider import get_provider
+        prov = get_provider(getattr(technique, "provider", None) or "native", self.llm)
+        line = await prov.open(spec, technique, persona, recon, belief, name, opening, rs.csrt)
         for idx in range(self.s.max_turns):
             try:
                 resp = await target.send_turn(sid, line)
@@ -382,8 +387,8 @@ class Runner:
             # so a turn-0 classifier false-positive can't cut multi-turn techniques short.
             if label == "Succeed" and belief.phase_idx >= len(technique.phase_plan) - 1:
                 break  # in-call signal only early-stops the loop; the panel decides the verdict
-            self.attacker.update_belief(belief, label, reply, technique)
-            line = await self.attacker.next_turn(spec, technique, persona, recon, belief, name, reply, rs.csrt)
+            prov.update_belief(belief, label, reply, technique)
+            line = await prov.next_turn(spec, technique, persona, recon, belief, name, reply, rs.csrt)
 
         try:
             await target.end_session(sid)

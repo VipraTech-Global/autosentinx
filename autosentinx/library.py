@@ -27,6 +27,7 @@ class TechniqueSpec(BaseModel):
     slug: str
     title: str
     technique_class: str = "drive"
+    provider: str = "native"              # P6 attack-provider seam: native | pyrit | deepteam | …
     strategy: str = ""
     phase_plan: list[TechPhase] = []
     applicable_modes: list[str] = []      # [] or ["*"] or explicit modes
@@ -74,6 +75,7 @@ class Library:
         tspecs = {
             t.slug: TechniqueSpec(
                 slug=t.slug, title=t.title, technique_class=t.technique_class, strategy=t.strategy,
+                provider=getattr(t, "provider", None) or "native",
                 phase_plan=[TechPhase(**p) for p in (json.loads(t.phase_plan) if t.phase_plan else [])],
                 applicable_modes=json.loads(t.applicable_modes) if t.applicable_modes else [],
                 modifiers=json.loads(t.modifiers) if t.modifiers else [],

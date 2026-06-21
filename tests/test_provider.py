@@ -19,7 +19,14 @@ def test_native_provider_is_registered_and_conforms():
 
 def test_unknown_provider_raises():
     with pytest.raises(KeyError):
-        get_provider("pyrit", _FakeLLM())     # external adapters not registered yet → explicit error
+        get_provider("no-such-engine", _FakeLLM())     # truly unregistered → explicit error
+
+
+def test_external_engine_shells_are_registered_but_unwired():
+    for name in ("pyrit", "deepteam", "garak", "promptfoo"):
+        assert name in providers()                     # registered behind the seam (documents intent)
+        with pytest.raises(NotImplementedError):
+            get_provider(name, _FakeLLM())             # resolving one fails clearly until wired
 
 
 def test_register_adds_a_provider_behind_the_same_contract():

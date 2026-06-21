@@ -175,6 +175,7 @@ class Technique(SQLModel, table=True):
     slug: str = Field(index=True, unique=True)
     title: str = ""
     technique_class: str = "drive"                    # drive | probe
+    provider: str = "native"                          # P6 attack-provider seam: native | pyrit | deepteam | …
     strategy: str = ""                                # objective-agnostic strategy (system-prompt fragment)
     phase_plan: str = ""                              # JSON list of {name, intent, advance_when}
     applicable_modes: str = ""                        # JSON list of spine modes, or "*"
