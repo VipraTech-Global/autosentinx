@@ -31,6 +31,19 @@ from .roe import KillSwitch
 
 log = logging.getLogger("autosentinx.runner")
 
+
+def _provider_recipe(prov) -> str:
+    """Serialize the attack provider's firing chain (DSL recipe / PAP technique / TAP branch decisions)
+    onto the Turn for audit + P9 suppression. Empty for the native ComposableAttacker (no last_chain).
+    Provider-agnostic: anything exposing `last_chain` is captured uniformly (also fixes the DSL gap)."""
+    chain = getattr(prov, "last_chain", None)
+    if not chain:
+        return ""
+    try:
+        return json.dumps({"primitive_chain": chain})   # keyed under a SENSITIVE_KEYS field (suppression.py)
+    except (TypeError, ValueError):
+        return ""
+
 # Neutral cooperative driver used for the fairness paired-runs (not an attack — observe treatment).
 _NEUTRAL_TECH = TechniqueSpec(
     slug="neutral-interaction", title="Neutral interaction", technique_class="probe",
@@ -381,6 +394,7 @@ class Runner:
                 attacker_line=line, target_reply=reply, label=label,
                 compliance_clean=resp.get("compliance_clean"),
                 violations=json.dumps(resp.get("violations", [])),
+                recipe=_provider_recipe(prov),   # P9-sensitive firing chain (DSL/PAP/TAP); "" for native
             ))
             belief.turn = idx + 1
             # D9 fix: only early-stop once the technique has run its full arc (reached the last phase),

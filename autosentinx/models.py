@@ -107,6 +107,7 @@ class Turn(SQLModel, table=True):
     label: str = ""  # Comply | Refusal | Unknown | Succeed
     compliance_clean: Optional[bool] = None  # AARAV's own self-report
     violations: str = ""  # JSON-encoded list (AARAV's own gate)
+    recipe: str = ""  # JSON firing chain from the attack provider (P9-sensitive; abstracted in public views)
 
 
 # --- Objective catalog (Phase 3, ADR 0011) ------------------------------------------------------

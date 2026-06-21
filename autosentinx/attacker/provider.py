@@ -81,3 +81,5 @@ for _name, _pkg in (("pyrit", "pyrit"), ("deepteam", "deepteam"),
     register(_name, _engine_shell(_name, _pkg))
 
 from . import dsl_provider  # noqa: E402,F401  — registers dsl-phonetic/codeswitch/sandwich + gptfuzz
+from . import pap_provider  # noqa: E402,F401  — registers pap-<technique> persuasion lane
+from . import tap_provider  # noqa: E402,F401  — registers beam-TAP ("tap")

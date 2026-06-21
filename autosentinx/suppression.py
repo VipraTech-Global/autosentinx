@@ -50,8 +50,8 @@ def technique_category(technique: str) -> str:
 def _category(technique: str) -> str:
     """Abstract a technique slug to a coarse family (no parameters / chain)."""
     t = technique.lower()
-    for needle, cat in (("crescendo", "gradual-escalation"), ("pair", "iterative-refinement"),
-                        ("tap", "tree-search"), ("goat", "adaptive-agent"),
+    for needle, cat in (("pap-", "persuasion"), ("crescendo", "gradual-escalation"),
+                        ("pair", "iterative-refinement"), ("tap", "tree-search"), ("goat", "adaptive-agent"),
                         ("xteam", "adaptive-agent"), ("fuzz", "mutation"),
                         ("sandwich", "code-switch"), ("actor", "role-play"),
                         ("opposite", "role-play"), ("foot", "incremental-commitment")):

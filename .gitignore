@@ -17,12 +17,14 @@ objectives/
 # --- Run artifacts / logs ---
 /runs/
 *.log
+audit-anchors.jsonl
 
 # --- Local planning/design docs (not part of the shipped code) ---
 BUILD-APPROACH.md
 TECH-PLAN.md
 PHASE-*.md
 BUILD-ROADMAP.md
+PLAN-PAP-TAP.md
 
 # --- corrobai trust-harness artifacts (spec/research/corpus/decision-graph/architecture) — local only ---
 .corrobai/
