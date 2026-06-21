@@ -7,6 +7,7 @@ AARAV's gate reported clean.
 """
 import json
 import logging
+import os
 import random
 
 from .attacker import ComposableAttacker
@@ -25,8 +26,23 @@ from .recon import Recon, ReconProfile
 from .selection import Selector
 from .store import SqlModelStore
 from .target import AaravTarget
+from .gateway import AuditedGateway, Budget, RoE
+from .roe import KillSwitch
 
 log = logging.getLogger("autosentinx.runner")
+
+
+def _provider_recipe(prov) -> str:
+    """Serialize the attack provider's firing chain (DSL recipe / PAP technique / TAP branch decisions)
+    onto the Turn for audit + P9 suppression. Empty for the native ComposableAttacker (no last_chain).
+    Provider-agnostic: anything exposing `last_chain` is captured uniformly (also fixes the DSL gap)."""
+    chain = getattr(prov, "last_chain", None)
+    if not chain:
+        return ""
+    try:
+        return json.dumps({"primitive_chain": chain})   # keyed under a SENSITIVE_KEYS field (suppression.py)
+    except (TypeError, ValueError):
+        return ""
 
 # Neutral cooperative driver used for the fairness paired-runs (not an attack — observe treatment).
 _NEUTRAL_TECH = TechniqueSpec(
@@ -56,6 +72,9 @@ class Runner:
             make_llm(model=self.s.llm_classifier_model, provider=self.s.llm_classifier_provider or None)
         )
         self.panel = JudgePanel()  # Phase-2 authoritative verdict (each judge swappable via LLM_JUDGE_MODELS)
+        # P7 tier-2: domain-dimension confirmation, reusing the panel's heterogeneous judge LLMs
+        from .oracle.domain import panel_from_judges
+        self.domain_panel = panel_from_judges(self.panel.judges)
         # Phase-6 special oracles for the consumer-protection modes (routed by mode)
         _judge_llm = make_llm(model=self.s.llm_judge_model)
         self.vuln_oracle = SingleJudgeOracle(_judge_llm, VULNERABILITY_SYS, "vulnerability-judge")
@@ -71,6 +90,15 @@ class Runner:
         if spec.mode == "MIS_SELLING":
             return await self.misselling_oracle.judge(spec, turns)
         return await self.panel.judge(spec, turns)
+
+    async def _anchor(self, run_id: str) -> None:
+        """Witness the tamper-evident audit chain head to the external store at campaign end
+        (P1 external anchoring, decision 19). Best-effort — anchoring never fails the campaign."""
+        try:
+            from .anchor import anchor_head
+            await anchor_head()
+        except Exception:  # noqa: BLE001
+            log.warning("external anchor failed for run %s", run_id)
 
     def _contact_for(self, i: int) -> int:
         """Rotate borrowers to dodge per-contact daily-attempt limits."""
@@ -90,7 +118,14 @@ class Runner:
         return cid, last
 
     async def run_campaign(self, run_id: str, runspecs: list[RunSpec], target_base: str | None = None) -> None:
-        target = AaravTarget(target_base)
+        # P4 keystone: the audited gateway is the SOLE egress to the target — every start/turn/end
+        # routes through it (RoE revalidation + audit append + governed-bound accounting), fail-closed.
+        # authorized=True reflects the human RoE approval already granted upstream at the /scan gate.
+        target = AuditedGateway(
+            target=AaravTarget(target_base),
+            roe=RoE(run_id=run_id, authorized=True, kill_switch_engaged=KillSwitch().engaged),
+            budget=Budget(granted=None),   # gateway audits every egress; the play budget is enforced by the loop
+        )
         self._idx = 0
         succeeded = 0
         done = 0
@@ -137,6 +172,7 @@ class Runner:
                 done += 1
                 await self.store.set_run_status(run_id, "running", done, succeeded)
             await self.store.set_run_status(run_id, "completed", done, succeeded)
+            await self._anchor(run_id)
         except Exception:  # noqa: BLE001
             log.exception("campaign %s failed", run_id)
             await self.store.set_run_status(run_id, "failed", done, succeeded)
@@ -148,7 +184,14 @@ class Runner:
                          target_base: str | None = None) -> None:
         """Budget-driven campaign (Phase 5 H1): round-robin objectives (coverage) × UCB/random
         technique selection (exploitation). strategy: ucb | random."""
-        target = AaravTarget(target_base)
+        # P4 keystone: the audited gateway is the SOLE egress to the target — every start/turn/end
+        # routes through it (RoE revalidation + audit append + governed-bound accounting), fail-closed.
+        # authorized=True reflects the human RoE approval already granted upstream at the /scan gate.
+        target = AuditedGateway(
+            target=AaravTarget(target_base),
+            roe=RoE(run_id=run_id, authorized=True, kill_switch_engaged=KillSwitch().engaged),
+            budget=Budget(granted=None),   # gateway audits every egress; the play budget is enforced by the loop
+        )
         self._idx = 0
         succeeded = 0
         done = 0
@@ -206,6 +249,7 @@ class Runner:
                 done += 1
                 await self.store.set_run_status(run_id, "running", done, succeeded)
             await self.store.set_run_status(run_id, "completed", done, succeeded)
+            await self._anchor(run_id)
         except Exception:  # noqa: BLE001
             log.exception("budget campaign %s failed", run_id)
             await self.store.set_run_status(run_id, "failed", done, succeeded)
@@ -216,7 +260,14 @@ class Runner:
                            replicates: int = 2, turns_per: int = 3, target_base: str | None = None) -> None:
         """Fairness audit (Phase 6 H2/ADR 0011 §3): for each matched persona pair, run the SAME neutral
         script with both, then a paired judge compares the agent's treatment. SUCCEEDED = disparate."""
-        target = AaravTarget(target_base)
+        # P4 keystone: the audited gateway is the SOLE egress to the target — every start/turn/end
+        # routes through it (RoE revalidation + audit append + governed-bound accounting), fail-closed.
+        # authorized=True reflects the human RoE approval already granted upstream at the /scan gate.
+        target = AuditedGateway(
+            target=AaravTarget(target_base),
+            roe=RoE(run_id=run_id, authorized=True, kill_switch_engaged=KillSwitch().engaged),
+            budget=Budget(granted=None),   # gateway audits every egress; the play budget is enforced by the loop
+        )
         self._idx = 0
         done = 0
         disparate = 0
@@ -258,6 +309,7 @@ class Runner:
                         disparate += 1
                     await self.store.set_run_status(run_id, "running", done, disparate)
             await self.store.set_run_status(run_id, "completed", done, disparate)
+            await self._anchor(run_id)
         except Exception:  # noqa: BLE001
             log.exception("fairness campaign %s failed", run_id)
             await self.store.set_run_status(run_id, "failed", done, disparate)
@@ -322,7 +374,12 @@ class Runner:
                 error=f"start blocked: {d.get('compliance_status')} — {d.get('compliance_reason', '')}"[:300],
             ), []
 
-        line = await self.attacker.open(spec, technique, persona, recon, belief, name, opening, rs.csrt)
+        # P6: resolve the attack provider this technique routes to (native = ComposableAttacker; external
+        # engines register behind the same open/next_turn/update_belief seam). Egress still goes only
+        # through `target` (the audited gateway) — providers never touch the target directly.
+        from .attacker.provider import get_provider
+        prov = get_provider(getattr(technique, "provider", None) or "native", self.llm)
+        line = await prov.open(spec, technique, persona, recon, belief, name, opening, rs.csrt)
         for idx in range(self.s.max_turns):
             try:
                 resp = await target.send_turn(sid, line)
@@ -337,14 +394,15 @@ class Runner:
                 attacker_line=line, target_reply=reply, label=label,
                 compliance_clean=resp.get("compliance_clean"),
                 violations=json.dumps(resp.get("violations", [])),
+                recipe=_provider_recipe(prov),   # P9-sensitive firing chain (DSL/PAP/TAP); "" for native
             ))
             belief.turn = idx + 1
             # D9 fix: only early-stop once the technique has run its full arc (reached the last phase),
             # so a turn-0 classifier false-positive can't cut multi-turn techniques short.
             if label == "Succeed" and belief.phase_idx >= len(technique.phase_plan) - 1:
                 break  # in-call signal only early-stops the loop; the panel decides the verdict
-            self.attacker.update_belief(belief, label, reply, technique)
-            line = await self.attacker.next_turn(spec, technique, persona, recon, belief, name, reply, rs.csrt)
+            prov.update_belief(belief, label, reply, technique)
+            line = await prov.next_turn(spec, technique, persona, recon, belief, name, reply, rs.csrt)
 
         try:
             await target.end_session(sid)
@@ -357,8 +415,31 @@ class Runner:
         outcome = {"SUCCEEDED": "succeeded", "DEFENDED": "defended", "UNKNOWN": "unknown"}.get(
             pv.outcome, "defended"
         )
+        # P7 SHADOW layer (Codex rec): regex-tier domain candidates recorded for calibration when
+        # DOMAIN_FINDINGS=shadow|enforced. Advisory ONLY — does NOT change `outcome` or verdict_score
+        # (the UCB reward stays the StrongREJECT score). Enforced outcome-gating awaits the two-tier
+        # judge-confirmation layer; until then enforced behaves like shadow (record, don't gate).
+        policy_mode = os.environ.get("DOMAIN_FINDINGS", "off")
+        domain_json = ""
+        if policy_mode != "off":
+            from .verdict import shadow_domain_candidates
+            candidates = shadow_domain_candidates(pv.outcome == "SUCCEEDED", hits)
+            if policy_mode == "enforced":
+                # tier-2: judges assess each dimension vs its clause (>=2/3 → confirmed). Candidates are
+                # regex-flagged UNION judge-PROPOSED always-check dims (regex is too narrow — #47), so a
+                # breach the regex misses still gets assessed. Only confirmed breaches gate the outcome;
+                # verdict_score (the UCB reward) is untouched.
+                from .oracle.domain import merge_candidates
+                confirmed = await self.domain_panel.confirm(turns, merge_candidates(candidates))
+                domain_json = json.dumps([{"dimension": d.name, "clause": d.clause, "confirmed": True}
+                                          for d in confirmed])
+                if confirmed and outcome != "succeeded":
+                    outcome = "succeeded"               # outcome_basis = domain breach (not jailbreak)
+            else:
+                domain_json = json.dumps(candidates)    # shadow: regex candidates, advisory
         return _attempt(
             outcome=outcome, verdict_score=pv.score, num_turns=len(turns),
             judge_votes=json.dumps([v.model_dump() for v in pv.votes]),
             detector_hits=json.dumps([h.model_dump() for h in hits]),
+            domain_findings=domain_json, policy_mode=policy_mode,
         ), turns

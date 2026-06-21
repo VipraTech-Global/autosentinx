@@ -57,6 +57,15 @@ class Settings(BaseSettings):
     openai_base_url: str = ""                  # e.g. http://localhost:8000/v1
     openai_api_key: str = ""                   # optional for most self-hosted servers
 
+    # --- attack-provider live lanes (PAP persuasion + beam-TAP) ---
+    # Flags gate SEEDING (selectability); registration is unconditional + harmless. Disable a lane
+    # without removing code via ENABLE_PAP=0 / ENABLE_TAP=0.
+    enable_pap: bool = True
+    enable_tap: bool = True
+    tap_branching: int = 3            # candidate next-lines generated + scored per turn (beam width)
+    tap_max_llm_calls: int = 80       # per-attempt attacker-LLM cap; over it, TAP collapses to single-gen
+    tap_scorer_model: str = ""        # optional separate scorer model (blank → the attacker LLM, temp 0)
+
     # --- auth (JWT) ---
     jwt_secret: str = "dev-insecure-change-me"   # MUST be set in prod (env JWT_SECRET)
     jwt_expire_hours: int = 24

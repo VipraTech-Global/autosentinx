@@ -89,6 +89,8 @@ class Attempt(SQLModel, table=True):
     verdict_score: float = 0.0  # mean StrongREJECT specificity across surviving judges
     judge_votes: str = ""       # JSON list of per-judge verdicts
     detector_hits: str = ""     # JSON list of deterministic detector hits (evidence)
+    domain_findings: str = ""   # P7 SHADOW: JSON regex-tier domain candidates (advisory; never gates outcome)
+    policy_mode: str = "off"    # P7 rollout: off | shadow | enforced (DOMAIN_FINDINGS env)
     num_turns: int = 0
     error: str = ""
     created_at: datetime = Field(default_factory=_now)
@@ -105,6 +107,7 @@ class Turn(SQLModel, table=True):
     label: str = ""  # Comply | Refusal | Unknown | Succeed
     compliance_clean: Optional[bool] = None  # AARAV's own self-report
     violations: str = ""  # JSON-encoded list (AARAV's own gate)
+    recipe: str = ""  # JSON firing chain from the attack provider (P9-sensitive; abstracted in public views)
 
 
 # --- Objective catalog (Phase 3, ADR 0011) ------------------------------------------------------
@@ -173,6 +176,7 @@ class Technique(SQLModel, table=True):
     slug: str = Field(index=True, unique=True)
     title: str = ""
     technique_class: str = "drive"                    # drive | probe
+    provider: str = "native"                          # P6 attack-provider seam: native | pyrit | deepteam | …
     strategy: str = ""                                # objective-agnostic strategy (system-prompt fragment)
     phase_plan: str = ""                              # JSON list of {name, intent, advance_when}
     applicable_modes: str = ""                        # JSON list of spine modes, or "*"
