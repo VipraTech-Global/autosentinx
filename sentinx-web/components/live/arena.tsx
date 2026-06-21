@@ -312,11 +312,12 @@ export default function Arena({ run, onDrillToV3 }: { run: RunView; onDrillToV3?
 
   return (
     <div className="max-w-[1340px] mx-auto px-5 py-4">
-      {/* recon prelude (full width) */}
-      <div className="flex items-baseline gap-2 mb-2.5">
+      {/* recon prelude (full width) — items-center so the icon + heading + detail spans share one row
+          cleanly (items-baseline mis-aligns because the h2 is itself an icon+text flex) */}
+      <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mb-2.5">
         <h2 className="text-[10.5px] uppercase tracking-[0.13em] text-ink-faint font-semibold flex items-center gap-1.5"><Radar size={13} /> Recon — how the attacker read AARAV</h2>
-        {recon?.contact ? <span className="mono text-[10.5px] text-ink-muted">contact · <span className="text-ink">{recon.contact}</span></span> : null}
-        {recon?.status === "done" && recon.steps?.length ? <span className="mono text-[10px] text-ink-faint">{recon.steps.length} probes · roll into a play → V3 for the transcript</span> : null}
+        {recon?.contact ? <span className="mono text-[10.5px] text-ink-muted leading-none">contact · <span className="text-ink">{recon.contact}</span></span> : null}
+        {recon?.status === "done" && recon.steps?.length ? <span className="mono text-[10px] text-ink-faint leading-none">{recon.steps.length} probes · roll into a play → V3 for the transcript</span> : null}
       </div>
       <div className="rounded-xl border border-border bg-surface px-4 py-3 text-[12.5px] text-ink-muted mb-5">
         {recon?.profile ? (
