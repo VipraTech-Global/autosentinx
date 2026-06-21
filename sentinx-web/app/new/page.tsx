@@ -131,7 +131,7 @@ export default function RunConfigPage() {
               <Row k="Target" v={endpoint} mono />
               <Row k="Agent" v={agent || "AARAV — NBFC voice debt-collection agent"} />
               <Row k="Scope" v={`Security + Compliance · ${INTENSITY[intensity].attacks === "all" ? "full catalog" : INTENSITY[intensity].attacks + " attacks"} · ${intensity} intensity`} />
-              <Row k="Data" v="Synthetic borrower data · no real PII" />
+              <Row k="Data" v="Synthetic borrower personas · contact names shown are test data, not real PII" />
             </dl>
 
             <div className="mt-5 flex gap-2">

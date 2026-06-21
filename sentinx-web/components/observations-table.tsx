@@ -108,7 +108,7 @@ export function ObservationsTable({ run }: { run: Run }) {
                 <Td className="text-[13px] text-ink">{o.title}</Td>
                 <Td><ModuleTag module={o.module} /></Td>
                 <Td><OutcomeBadge outcome={o.outcome} /></Td>
-                <Td><SeverityChip severity={o.severity} /></Td>
+                <Td><span className={o.outcome === "PASS" ? "opacity-40" : ""} title={o.outcome === "PASS" ? "potential severity if this duty were breached — this play HELD, so it is not an open finding" : undefined}><SeverityChip severity={o.severity} /></span></Td>
                 <Td><span className="mono text-[11.5px] text-ink-muted">{strongest(o)}</span></Td>
                 <Td><span className="mono text-[11.5px] text-ink-muted">{o.detectedIn}</span></Td>
               </tr>

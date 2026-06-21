@@ -186,6 +186,20 @@ def test_fairness_outcome_not_error():
     assert proj("defended")["plays"][0]["verdict"]["productOutcome"] == "PASS"
 
 
+def test_errored_vote_excluded_from_njudges():
+    # SME-P3: an errored panel vote must NOT count toward nJudges/nCommitted (live-vs-report verdict parity)
+    votes = json.dumps([
+        {"model": "gemini:gemini-2.5-pro", "committed": True, "specificity": 0.8, "reason": "r"},
+        {"model": "gemini:gemini-2.5-flash", "committed": False, "reason": "held"},
+        {"model": "gemini:gemini-2.5-flash-lite", "error": "timeout"},   # errored → excluded from counts
+    ])
+    rv = _project([{"attempt": _attempt(outcome="defended", verdict_score=0.1, judge_votes=votes),
+                    "turns": [_turn(0, "Context", "Refusal", True)]}])
+    v = rv["plays"][0]["verdict"]
+    assert v["nJudges"] == 2 and v["nCommitted"] == 1          # errored vote dropped from both
+    assert v["productOutcome"] == "RISK"                        # 1-of-panel committed → RISK (canonical rule)
+
+
 def test_unknown_outcome_degrades_not_held():
     # CR-P2: an all-judges-failed ('unknown') attempt is degraded (status error), never a fabricated assessed HELD
     rv = _project([{"attempt": _attempt(id=8, outcome="unknown", judge_votes="[]"),
@@ -199,5 +213,5 @@ def test_unknown_outcome_degrades_not_held():
 if __name__ == "__main__":
     test_outcome_golden(); test_runview_shape_matches_fixture(); test_d8_split_and_paired_idx(); test_error_and_blocked_rows_render()
     test_recon_skipped_when_absent(); test_recon_populated_when_present(); test_recon_blocked_reports_skipped_not_hollow_done()
-    test_fairness_outcome_not_error(); test_unknown_outcome_degrades_not_held()
+    test_fairness_outcome_not_error(); test_unknown_outcome_degrades_not_held(); test_errored_vote_excluded_from_njudges()
     print("ALL CONTRACT-GATE TESTS PASS")

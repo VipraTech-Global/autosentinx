@@ -194,8 +194,11 @@ async def scan(
 
 
 @app.post("/runs/{run_id}/approve")
-async def approve_run(run_id: str, background: BackgroundTasks, approver: str = Query("operator")):
-    """Approve a pending scan → it runs within its recorded RoE (Phase 7 governance gate)."""
+async def approve_run(run_id: str, background: BackgroundTasks, user: User = Depends(current_user)):
+    """Approve a pending scan → it runs within its recorded RoE (Phase 7 governance gate).
+    The approver is bound to the AUTHENTICATED principal (not a client-supplied string) so the
+    hash-chained audit entry accountably answers 'who approved this campaign'."""
+    approver = user.email
     d = await store.get_run(run_id)
     if not d:
         raise HTTPException(status_code=404, detail="run not found")

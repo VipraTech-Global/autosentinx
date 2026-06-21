@@ -73,12 +73,13 @@ export function RunProvenance({ run }: { run: Run }) {
     ["Target", run.targetUrl],
     ["Agent", run.agentName],
     ["Operator", run.operator],
-    ["Started", run.startedAt],
-    ["Ended", run.endedAt ?? "—"],
+    ["Started", run.startedAt ? `${run.startedAt} UTC` : "—"],
+    ["Ended", run.endedAt ? `${run.endedAt} UTC` : "—"],
     ["Duration", run.durationSec ? `${Math.floor(run.durationSec / 60)}m ${run.durationSec % 60}s` : "—"],
     ["Engine", run.engineVersion],
     ["Scenario library", run.scenarioLibVersion],
-    ["Plays run", String(run.playsTotal)],
+    ["Plays executed", String(run.playsDone)],
+    ["Plays planned (budget)", String(run.playsTotal)],
   ];
   return (
     <dl className="grid grid-cols-1 gap-x-8 gap-y-1.5 sm:grid-cols-2">

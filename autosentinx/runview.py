@@ -153,8 +153,10 @@ class RunViewProjection:
             # recon ran but probed nothing (target blocked the start session / empty fallback) — honest
             # 'skipped' with the cause, never a hollow 'done' profile (same never-fabricate principle as CR-P2)
             notes = r.get("notes") or []
-            reason = next((n for n in notes if "skip" in n.lower()), None) or \
-                "recon did not complete — target blocked the start session"
+            raw = next((n for n in notes if "skip" in n.lower()), None)
+            # strip a leading 'recon skipped:' so the FE ('recon skipped — {reason}') doesn't double-print it
+            reason = (raw.split(":", 1)[1].strip() if raw and ":" in raw else raw) or \
+                "target blocked the start session"
             return {"status": "skipped", "reason": reason, "contact": r.get("contact_name") or ""}
         return {
             "status": "done",

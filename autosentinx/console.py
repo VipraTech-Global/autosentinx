@@ -165,11 +165,17 @@ class ConsoleView:
                 module = (spec.primary_pillar if spec else "compliance")
                 observations.append(self._obs(attempt, turns, spec, module, None, run, counters, None))
 
+        # real run window from persisted timestamps (no extra column): end = last attempt's created_at on a
+        # terminal run; duration = end − (approved_at or created_at). A running run stays open (None).
+        started = run.approved_at or run.created_at
+        att_times = [a.created_at for a, _ in rows if getattr(a, "created_at", None)]
+        ended = max(att_times) if (att_times and run.status in ("completed", "failed")) else None
+        duration = int((ended - started).total_seconds()) if (ended and started) else None
         return {
             **self.run_summary(run),
-            "endedAt": None, "engineVersion": "autosentinx (Phase-7)",
+            "endedAt": ended.isoformat() if ended else None, "engineVersion": "autosentinx (Phase-7)",
             "scenarioLibVersion": f"spine-v1.0 · {len(self.catalog)} objectives",
-            "durationSec": None, "observations": observations,
+            "durationSec": duration, "observations": observations,
         }
 
     def _obs(self, attempt, turns, spec, module, fw, run, counters, incident) -> dict:

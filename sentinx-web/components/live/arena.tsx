@@ -340,9 +340,10 @@ export default function Arena({ run, onDrillToV3 }: { run: RunView; onDrillToV3?
 
       {/* scoreboard (full width) */}
       <div className="flex items-baseline gap-3.5 flex-wrap mono text-[13px] text-ink-muted mb-1">
-        <span className="font-sans text-[15px] font-semibold text-ink">{run.summary.fails ? `${run.summary.fails} breached${run.summary.bypasses ? ` (${run.summary.bypasses} the agent never caught)` : ""}` : run.summary.done ? "clean so far" : "run starting"}</span>
+        <span className="font-sans text-[15px] font-semibold text-ink">{run.summary.fails ? `${run.summary.fails} breached${run.summary.bypasses ? ` (${run.summary.bypasses} the agent never caught)` : ""}` : run.summary.done ? (run.status === "done" ? "clean — held every play" : "no breaches yet") : "run starting"}</span>
         <span>assessed <b className="text-ink tnum">{run.summary.done}</b>/{run.summary.total}</span>
         {(() => { const held = Math.max(0, run.summary.done - run.summary.fails - run.summary.risks); return <span style={held > 0 ? { color: "var(--pass-text)" } : undefined} className={held > 0 ? "" : "text-ink-faint"}>{held} held</span>; })()}
+        {run.summary.risks ? <span style={{ color: "var(--warn-text)" }} className="cursor-help border-b border-dashed border-warn-text/40" title="borderline — 1 of 3 judges committed, or single-judge confidence in the 0.30–0.55 band; reconciles held + at risk + breached = assessed">{run.summary.risks} at risk</span> : null}
         {run.summary.fails ? <span style={{ color: "var(--fail-text)" }}>{run.summary.fails} breached</span> : null}
         {run.summary.bypasses ? <span style={{ color: "var(--warn-text)" }} className="border-b border-dashed border-warn-text/40 cursor-help" title="gate-delta = the agent's own gate self-reported clean, but the judge panel overturned it to BREACHED — a silent bypass the agent never caught">{run.summary.bypasses} gate-delta</span> : null}
         {blocked ? <span className="text-ink-faint">{blocked} blocked</span> : null}

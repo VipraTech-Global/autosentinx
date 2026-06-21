@@ -83,14 +83,29 @@ export default function Forensic({ run, play }: { run: RunView; play: PlayView }
         )}
       </Section>
 
+      {/* REGULATION — the control(s) this play maps to (load-bearing for a compliance finding) */}
+      {play.regulation?.length ? (
+        <Section title="Regulation" icon={<Scale size={13} />} note="the control(s) this play maps to">
+          <div className="grid gap-1.5">
+            {play.regulation.map((r, i) => (
+              <div key={i} className="text-[12px] flex items-start gap-2">
+                <span className="mono text-[11px] text-ink shrink-0 font-semibold">{r.framework} {r.control_id}</span>
+                {r.control_title ? <span className="text-ink-muted">— {r.control_title}</span> : null}
+              </div>
+            ))}
+          </div>
+        </Section>
+      ) : null}
+
       {/* FULL TRANSCRIPT — every turn (internal-unrestricted full chain) */}
       <Section title="Full transcript" icon={<FileText size={13} />} note={`${play.turns.length} turns · Probe (Sentinx) vs Target (AARAV) · controlled red-team, synthetic data`}>
+        <div className="text-[10px] mono text-ink-faint mb-2.5">per-turn label (advisory): <b className="text-ink">Refusal</b> agent held · <b className="text-ink">Comply</b> gave ground · <b className="text-ink">Succeed</b> attacker got the line · <b className="text-ink">Unknown</b> classifier could not decide</div>
         <div className="grid gap-3">
           {play.turns.map((t) => {
             const pivot = play.pivotTurn != null && t.idx === play.pivotTurn;
             return (
               <div key={t.idx} className={pivot ? "rounded-md p-2 -m-2" : ""} style={pivot ? { background: "color-mix(in srgb,var(--fail) 7%,transparent)" } : undefined}>
-                <div className="text-[9.5px] uppercase tracking-wide text-ink-faint mb-1">[{t.phase}] {t.intent} {pivot ? <span style={{ color: "var(--fail-text)" }}>· classifier marked a commit here (advisory)</span> : null}</div>
+                <div className="text-[9.5px] text-ink-faint mb-1"><span className="uppercase tracking-wide font-semibold">{t.phase}</span><span className="ml-1.5 normal-case">{t.intent}</span>{pivot ? <span style={{ color: "var(--fail-text)" }}> · classifier marked a commit here (advisory)</span> : null}</div>
                 <div className="text-[13px] rounded-lg px-3 py-1.5 ml-auto max-w-[88%] deva" style={{ background: "var(--brand-soft)", color: "var(--brand-strong)", borderBottomRightRadius: 3 }}><span className="text-[9px] uppercase tracking-wide text-ink-faint block">attacker</span>{t.attacker}</div>
                 <div className="text-[13px] rounded-lg px-3 py-1.5 mt-1 max-w-[88%] deva" style={{ background: "var(--surface-sunk)", border: "1px solid var(--border)", borderBottomLeftRadius: 3 }}><span className="text-[9px] uppercase tracking-wide text-ink-faint block">AARAV (target)</span>{t.agent}<span className="mono text-[9.5px] ml-2 px-1.5 py-0.5 rounded-[3px] border border-border align-middle" title={`advisory in-call classifier (not the ruling) — ${t.label === "Succeed" ? "attacker got the line" : t.label === "Refusal" ? "agent held" : t.label === "Comply" ? "agent complied" : "unclear"}`}>{t.label}</span></div>
               </div>
@@ -98,6 +113,21 @@ export default function Forensic({ run, play }: { run: RunView; play: PlayView }
           })}
           {!play.turns.length ? <div className="mono text-[11px] text-ink-faint">no turns — {play.status}</div> : null}
         </div>
+      </Section>
+
+      {/* DETECTORS — deterministic pattern hits (corroborating, non-LLM evidence) */}
+      <Section title="Detectors" icon={<Search size={13} />} note="deterministic pattern hits — corroborating evidence, not the ruling">
+        {v?.detectors?.length ? (
+          <div className="grid gap-1.5">
+            {v.detectors.map((d, i) => (
+              <div key={i} className="text-[11.5px] mono text-ink-muted flex flex-wrap items-baseline gap-x-2">
+                {d.turn != null ? <span className="text-ink-faint shrink-0">turn {d.turn}</span> : null}
+                <span className="text-ink">{[d.group, d.detector ?? d.name].filter(Boolean).join(" · ")}</span>
+                {d.match ? <span className="text-ink-muted">matched: “{d.match}”</span> : null}
+              </div>
+            ))}
+          </div>
+        ) : <div className="mono text-[11px] text-ink-faint">no deterministic detector fired — the panel verdict is the sole signal</div>}
       </Section>
 
       {/* RECON — the full scouting interrogation (D-LV22: 'full recon profile') */}
@@ -138,11 +168,11 @@ export default function Forensic({ run, play }: { run: RunView; play: PlayView }
         </Section>
       ) : null}
 
-      {/* DEBUG INTERNALS */}
-      <Section title="Engine internals" icon={<Bug size={13} />} note="advisory — for QA/debug">
+      {/* ATTACK PROGRESSION — how the multi-turn attack unfolded (engine internals, advisory) */}
+      <Section title="Attack progression" icon={<Bug size={13} />} note="advisory · how the multi-turn attack unfolded (engine internals)">
         <div className="mono text-[11px] text-ink-muted grid gap-1">
           <div>phase plan: {play.phasePlan.map((p) => p.name).join(" → ")}</div>
-          <div>arc reached: {play.arc.map((a) => a.phase).join(" → ") || "—"} · arcComplete: <b className="text-ink">{String(play.arcComplete)}</b></div>
+          <div>arc reached: {play.arc.map((a) => a.phase).join(" → ") || "—"} · all planned phases reached: <b className="text-ink">{String(play.arcComplete)}</b></div>
           <div>beats (why each phase advanced): {play.beats.length ? play.beats.map((b) => `${b.toPhase}=${b.trigger}`).join(" · ") : "—"} <span className="text-ink-faint">(conceded = agent yielded · re-angled/timer = attacker re-framed)</span></div>
           <div>pivotTurn (advisory classifier): <b className="text-ink">{play.pivotTurn ?? "none"}</b> — the last in-call commit, NOT guaranteed the judge-quoted line</div>
           <div>label trend: <span className="text-ink">{play.turns.map((t) => t.label[0]).join("") || "—"}</span> <span className="text-ink-faint">(R refusal · S succeed · C comply · U unknown)</span></div>

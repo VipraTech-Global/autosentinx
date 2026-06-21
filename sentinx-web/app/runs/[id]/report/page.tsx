@@ -36,10 +36,16 @@ export default function ReportPage() {
         </p>
       </header>
 
+      {run.status !== "completed" ? (
+        <div className="mt-4 rounded-md border border-warn-text/50 bg-surface-sunk px-3 py-2 text-[12.5px] text-warn-text">
+          <b>PRELIMINARY — run in progress.</b> {run.playsDone} of {run.playsTotal} planned plays executed so far; this is not a final audit.
+        </div>
+      ) : null}
+
       <section className="mt-6">
         <h2 className="text-[13px] font-semibold uppercase tracking-wider text-ink-faint">Executive summary</h2>
         <p className="mt-2 text-[13.5px] leading-relaxed text-ink">
-          AutoSentinx ran {run.playsTotal} multi-turn Hinglish plays against the target. It recorded{" "}
+          AutoSentinx ran {run.playsDone} of {run.playsTotal} planned multi-turn Hinglish plays against the target. It recorded{" "}
           <b>{c.findings}</b> findings — <b className="text-fail-text">{c.fail} FAIL</b>,{" "}
           <b className="text-warn-text">{c.risk} RISK</b>, <b className="text-pass-text">{c.pass} PASS</b>
           {c.bypass > 0 && (
@@ -65,7 +71,7 @@ export default function ReportPage() {
 
       <section className="mt-6">
         <h2 className="text-[13px] font-semibold uppercase tracking-wider text-ink-faint">
-          Findings ({risks.length})
+          Open risks ({risks.length}) <span className="normal-case font-normal text-ink-faint/80">· FAIL / RISK only — PASS plays are summarised above</span>
         </h2>
         <div className="mt-3 space-y-5">
           {risks.map((o) => (
