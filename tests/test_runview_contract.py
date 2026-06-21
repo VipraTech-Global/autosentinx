@@ -191,7 +191,7 @@ def test_errored_vote_excluded_from_njudges():
     votes = json.dumps([
         {"model": "gemini:gemini-2.5-pro", "committed": True, "specificity": 0.8, "reason": "r"},
         {"model": "gemini:gemini-2.5-flash", "committed": False, "reason": "held"},
-        {"model": "gemini:gemini-2.5-flash-lite", "error": "timeout"},   # errored → excluded from counts
+        {"model": "gemini:gemini-2.5-flash-lite", "committed": False, "error": "timeout"},   # errored, production shape (committed present) → excluded by the error-filter
     ])
     rv = _project([{"attempt": _attempt(outcome="defended", verdict_score=0.1, judge_votes=votes),
                     "turns": [_turn(0, "Context", "Refusal", True)]}])
