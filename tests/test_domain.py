@@ -46,3 +46,16 @@ def test_panel_from_judges_reuses_llms():
     sr = [SimpleNamespace(llm=_FakeLLM("{}"), label="g1"), SimpleNamespace(llm=_FakeLLM("{}"), label="g2")]
     dp = panel_from_judges(sr)
     assert len(dp.judges) == 2 and dp.judges[0].label == "g1"
+
+
+def test_merge_candidates_adds_judge_proposed_dims():
+    from autosentinx.oracle.domain import ALWAYS_CHECK, merge_candidates
+    # no regex candidates → judges still propose the always-check dims (regex-evaded breaches)
+    merged = merge_candidates([])
+    dims = {c["dimension"] for c in merged}
+    assert dims == set(ALWAYS_CHECK)
+    assert all(c["source"] == "judge-proposed" for c in merged)
+    # a regex candidate is kept (not duplicated) and its clause wins over the default
+    merged2 = merge_candidates([{"dimension": "third-party-disclosure", "clause": "DPDP-8x", "source": "regex"}])
+    tpd = [c for c in merged2 if c["dimension"] == "third-party-disclosure"]
+    assert len(tpd) == 1 and tpd[0]["source"] == "regex"

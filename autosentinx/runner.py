@@ -410,10 +410,13 @@ class Runner:
         if policy_mode != "off":
             from .verdict import shadow_domain_candidates
             candidates = shadow_domain_candidates(pv.outcome == "SUCCEEDED", hits)
-            if policy_mode == "enforced" and candidates:
-                # tier-2: judges confirm each regex candidate vs its clause (>=2/3); only confirmed
-                # breaches become findings and gate the outcome. verdict_score (UCB reward) is untouched.
-                confirmed = await self.domain_panel.confirm(turns, candidates)
+            if policy_mode == "enforced":
+                # tier-2: judges assess each dimension vs its clause (>=2/3 → confirmed). Candidates are
+                # regex-flagged UNION judge-PROPOSED always-check dims (regex is too narrow — #47), so a
+                # breach the regex misses still gets assessed. Only confirmed breaches gate the outcome;
+                # verdict_score (the UCB reward) is untouched.
+                from .oracle.domain import merge_candidates
+                confirmed = await self.domain_panel.confirm(turns, merge_candidates(candidates))
                 domain_json = json.dumps([{"dimension": d.name, "clause": d.clause, "confirmed": True}
                                           for d in confirmed])
                 if confirmed and outcome != "succeeded":
