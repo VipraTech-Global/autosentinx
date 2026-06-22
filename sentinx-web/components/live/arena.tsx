@@ -22,7 +22,7 @@ function intelLabel(lk: { intelCard?: string; value?: unknown }): string {
 }
 
 // redundant non-colour severity glyph (DESIGN.md §5)
-function Sev({ s }: { s: Severity }) {
+export function Sev({ s }: { s: Severity }) {
   const cls = "inline-block w-2.5 h-2.5 align-middle";
   const m: Record<Severity, React.ReactNode> = {
     critical: <span className={cls} style={{ background: "var(--sev-critical)" }} />,
@@ -34,12 +34,13 @@ function Sev({ s }: { s: Severity }) {
 }
 
 // the frame-ribbon cell — ink-only by SHAPE; yielded is a STRUCK (additive) cell, not empty.
-function Cell({ k, lg }: { k: CellKind; lg?: boolean }) {
+// Exported so /arena/explainer renders pixel-identical glyphs (single source of truth — do not fork).
+export function Cell({ k, lg }: { k: CellKind; lg?: boolean }) {
   const titles: Record<CellKind, string> = { held: "held", wavered: "wavered", yielded: "the agent gave the line (advisory)", unknown: "unknown", pending: "estimated — a turn that may yet be played (up to the run's max turns)" };
   return <span className={`cell cell-${k}${lg ? " cell-lg" : ""}`} title={titles[k]} />;
 }
 
-function StripLegend() {
+export function StripLegend() {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] mono text-ink-faint">
       <span>per-turn defence (advisory · not the ruling):</span>

@@ -43,3 +43,7 @@ deploy.env.yaml
 
 # Local-only: chat archives (secrets), test drivers, capture dumps — never commit
 _LOCAL_EXCLUDED/
+
+# PR assets (local-only)
+PR_BODY.md
+pr-screenshots/
