@@ -5,7 +5,8 @@ import { useParams } from "next/navigation";
 import { ArrowLeft, Link2 } from "lucide-react";
 import { useRun } from "@/lib/use-run";
 import { ORACLE_LABEL } from "@/lib/outcome";
-import { TopBar } from "@/components/top-bar";
+import { RunNav } from "@/components/live/run-nav";
+import { RunFooter } from "@/components/run-footer";
 import { OutcomeBadge, ModuleTag, SeverityChip } from "@/components/badges";
 import { SectionLabel } from "@/components/ui";
 import {
@@ -25,7 +26,7 @@ export default function ObservationPage() {
 
   return (
     <>
-      <TopBar run={run} />
+      <RunNav runId={run.id} current="findings" findingsReady={run.playsDone >= 1 || run.status !== "running"} />
       <main className="mx-auto max-w-4xl px-5 py-6">
         <Link
           href={`/runs/${run.id}/findings`}
@@ -105,6 +106,7 @@ export default function ObservationPage() {
           <ConfidentialityLine />
         </div>
       </main>
+      <RunFooter runId={run.id} agentName={run.agentName} ts={run.endedAt ?? run.startedAt} />
     </>
   );
 }

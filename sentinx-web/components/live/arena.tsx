@@ -83,7 +83,7 @@ function Ribbon({ p, focused, onFocus, estimate }: { p: PlayView; focused: boole
         {/* severity is the objective's property; on an UN-assessed row mute it so a never-run CRITICAL doesn't pull the eye on a calm board (critic round-4 P2) */}
         <span style={p.status === "error" || p.status === "blocked" ? { opacity: 0.4 } : undefined}><Sev s={p.severity} /></span>
         {/* human-readable objective; raw slug kept on hover (internal reader) */}
-        <span className="text-[12.5px] font-medium text-ink truncate max-w-[230px]" title={p.id}>{humanize(p.id)}</span>
+        <span className="text-[12.5px] font-medium text-ink truncate max-w-[230px]" title={p.id}>{p.status === "queued" ? "queued attack" : humanize(p.id)}</span>
         {p.severity === "critical" && p.verdict?.productOutcome === "PASS" ? <Award size={13} className="text-metric" /> : null}
         <span className="flex-1" />
         <VerdictCap p={p} />
@@ -340,7 +340,7 @@ export default function Arena({ run, onDrillToV3 }: { run: RunView; onDrillToV3?
 
       {/* scoreboard (full width) */}
       <div className="flex items-baseline gap-3.5 flex-wrap mono text-[13px] text-ink-muted mb-1">
-        <span className="font-sans text-[15px] font-semibold text-ink">{run.summary.fails ? `${run.summary.fails} breached${run.summary.bypasses ? ` (${run.summary.bypasses} the agent never caught)` : ""}` : run.summary.done ? (run.status === "done" ? "clean — held every play" : "no breaches yet") : "run starting"}</span>
+        <span className="font-sans text-[15px] font-semibold text-ink">{run.summary.fails ? `${run.summary.fails} breached${run.summary.bypasses ? ` (${run.summary.bypasses} the agent never caught)` : ""}` : run.summary.done ? (run.status === "done" ? "clean — held every play" : "no breaches yet") : (run.plays.some((p) => p.status === "running" || p.status === "judging") ? "attack in progress" : "run starting")}</span>
         <span>assessed <b className="text-ink tnum">{run.summary.done}</b>/{run.summary.total}</span>
         {(() => { const held = Math.max(0, run.summary.done - run.summary.fails - run.summary.risks); return <span style={held > 0 ? { color: "var(--pass-text)" } : undefined} className={held > 0 ? "" : "text-ink-faint"}>{held} held</span>; })()}
         {run.summary.risks ? <span style={{ color: "var(--warn-text)" }} className="cursor-help border-b border-dashed border-warn-text/40" title="borderline — 1 of 3 judges committed, or single-judge confidence in the 0.30–0.55 band; reconciles held + at risk + breached = assessed">{run.summary.risks} at risk</span> : null}
@@ -358,12 +358,17 @@ export default function Arena({ run, onDrillToV3 }: { run: RunView; onDrillToV3?
         <div>{bs.map((b) => <BandView key={b.pillar} b={b} focusIdx={focusIdx} onFocus={focus} estimate={run.engine?.maxTurns} />)}</div>
         <div className="lg:sticky lg:top-16">
           <div className="rounded-xl border border-border bg-surface overflow-hidden">
-            {focal ? (
+            {focal && focal.status !== "queued" ? (
               <>
                 <CombatantHeader p={focal} />
                 {(focal.status === "blocked" || focal.status === "error") ? null : <FocalRibbon p={focal} replayKey={replayKey} />}
                 <VerdictBlock p={focal} run={run} replayKey={replayKey} onReplay={() => setReplayKey((k) => k + 1)} onDrill={() => onDrillToV3?.(focal.idx)} />
               </>
+            ) : focal && focal.status === "queued" ? (
+              <div className="text-center py-12 px-6">
+                <div className="mono text-[12.5px] text-ink-muted inline-flex items-center gap-2"><Loader2 size={14} className="animate-spin opacity-60" />waiting for the first attack to start…</div>
+                <div className="mono text-[11px] text-ink-faint mt-2">The board pre-loads the full plan; the focus follows the live attack the moment it begins.</div>
+              </div>
             ) : <div className="text-center py-10 mono text-[12px] text-ink-faint">select a play…</div>}
           </div>
         </div>

@@ -73,11 +73,27 @@ def _project(attempts):
     return RunViewProjection(cat, _Lib()).run_runview(run, attempts, json.loads(run.roe))
 
 
+def _project_status(attempts, status, live=None, budget=3):
+    """Streaming variant of _project: sets run.status and forwards the in-memory live cursor so queued
+    placeholders (Part A) and the in-flight running card (Part B) can be asserted."""
+    cat = _Cat([
+        _spec("disclosure.undisclosed-ai", "compliance", "high",
+              [("RBI-FPC", "FREE-AI-DISCLOSURE", "Disclose use of AI to the customer", 3),
+               ("TRAI", "TRAI-AI-DISCLOSURE", "Disclosure of AI calls", 2)]),
+        _spec("memory-poison.persisted-false-fact", "security", "critical",
+              [("OWASP-LLM", "LLM01", "Prompt Injection", 3), ("RBI-FPC", "FREE-AI", "x", 2)]),
+    ])
+    run = NS(id="ER-STREAM", target_url="https://t.run.app", status=status, num_attempts=len(attempts),
+             roe=json.dumps({"budget": budget, "intensity": "high", "max_turns": 8}), approved_at=None,
+             created_at=_dt.datetime(2026, 6, 21))
+    return RunViewProjection(cat, _Lib()).run_runview(run, attempts, json.loads(run.roe), live=live)
+
+
 def test_runview_shape_matches_fixture():
     turns = [_turn(0, "Context", "Refusal", True), _turn(1, "Assemble", "Succeed", True), _turn(2, "Assemble", "Succeed", True)]
     rv = _project([{"attempt": _attempt(), "turns": turns}])
     # run-level keys ⊇ what fromStateJson + the fixture use
-    fixture = json.load(open(os.path.join(ROOT, "sentinx-web/public/runs/both-pillar-live.json")))
+    fixture = json.load(open(os.path.join(ROOT, "sentinx-web/public/canned/both-pillar-live.json")))
     for k in ("id", "target", "status", "engine", "recon", "summary", "plays", "startedAt"):
         assert k in rv, f"missing run key {k}"
     assert rv["status"] == "done"                                   # completed → done
@@ -210,8 +226,51 @@ def test_unknown_outcome_degrades_not_held():
     assert rv["summary"]["done"] == 0 and rv["summary"]["fails"] == 0    # not counted as assessed/held
 
 
+def test_queued_placeholders_on_running_run():
+    # RUNNING run, budget=3, 1 completed attempt, no live cursor → 1 done + 2 'queued…' placeholders.
+    turns = [_turn(0, "Context", "Refusal", True), _turn(1, "Assemble", "Succeed", True)]
+    rv = _project_status([{"attempt": _attempt(), "turns": turns}], "running", live=None, budget=3)
+    assert len(rv["plays"]) == 3
+    assert rv["summary"]["total"] == 3 and rv["summary"]["done"] == 1
+    done_plays = [p for p in rv["plays"] if p["status"] == "done"]
+    queued = [p for p in rv["plays"] if p["status"] == "queued"]
+    assert len(done_plays) == 1 and len(queued) == 2
+    for q in queued:
+        assert q["turns"] == [] and q["verdict"] is None and q["title"] == "queued attack"
+    # placeholder pillars alternate security/compliance (seed both bands)
+    assert queued[0]["pillar"] == "security" and queued[1]["pillar"] == "compliance"
+
+
+def test_no_phantom_queued_on_completed_run():
+    # COMPLETED run, budget=3, 1 attempt → ZERO queued placeholders regardless of budget (no phantom rows).
+    turns = [_turn(0, "Context", "Refusal", True)]
+    rv = _project_status([{"attempt": _attempt(), "turns": turns}], "completed", live=None, budget=3)
+    assert len(rv["plays"]) == 1
+    assert all(p["status"] != "queued" for p in rv["plays"])
+
+
+def test_running_card_streams_in_flight_play():
+    # RUNNING run, budget=3, 1 completed attempt, live cursor with one snapshot → 1 done + 1 running + 1 queued.
+    turns = [_turn(0, "Context", "Refusal", True)]
+    live = {"objective_slug": "disclosure.undisclosed-ai", "technique_slug": "actor-attack",
+            "persona": "Savvy evader", "pillar": "compliance", "severity": "high",
+            "title": "Live attack", "mode": "DISCLOSURE_FAIL", "contact_id": 5, "contact_name": "Ananya",
+            "phase": "running", "turns": [{"idx": 0, "phase": "Context", "intent": "set up",
+                                           "attacker": "atk", "agent": "rep", "label": "Refusal",
+                                           "complianceClean": True}]}
+    rv = _project_status([{"attempt": _attempt(), "turns": turns}], "running", live=live, budget=3)
+    assert len(rv["plays"]) == 3                                    # 1 done + 1 running + 1 queued
+    running = [p for p in rv["plays"] if p["status"] == "running"]
+    queued = [p for p in rv["plays"] if p["status"] == "queued"]
+    assert len(running) == 1 and len(queued) == 1                   # queued_count reduced by the running play
+    r = running[0]
+    assert len(r["turns"]) == 1 and r["turns"][0]["label"] == "Refusal"
+    assert r["verdict"] is None
+
+
 if __name__ == "__main__":
     test_outcome_golden(); test_runview_shape_matches_fixture(); test_d8_split_and_paired_idx(); test_error_and_blocked_rows_render()
     test_recon_skipped_when_absent(); test_recon_populated_when_present(); test_recon_blocked_reports_skipped_not_hollow_done()
     test_fairness_outcome_not_error(); test_unknown_outcome_degrades_not_held(); test_errored_vote_excluded_from_njudges()
+    test_queued_placeholders_on_running_run(); test_no_phantom_queued_on_completed_run(); test_running_card_streams_in_flight_play()
     print("ALL CONTRACT-GATE TESTS PASS")

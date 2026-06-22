@@ -53,6 +53,12 @@ export async function approveScan(runId: string): Promise<void> {
   await req(`/api/runs/${runId}/approve`, { method: "POST" });
 }
 
+// Operator stop — halts a running campaign after the in-flight play (cooperative, backend-side).
+export async function stopRun(runId: string): Promise<{ stopping: boolean; status: string }> {
+  const r = await req(`/api/runs/${runId}/stop`, { method: "POST" });
+  return r.json();
+}
+
 // The console emits Observations without the UI-derived FAIL/RISK/PASS; fill it here (single source: outcome.ts).
 function withOutcomes(run: Run & { observations: Array<Omit<Observation, "outcome"> & { outcome?: Outcome }> }): Run {
   const obs = (run.observations ?? [])
@@ -88,7 +94,24 @@ export async function getRunView(runId: string): Promise<RunView> {
   return fromStateJson(await r.json(), runId);
 }
 
-export async function listRuns(): Promise<{ runs: Array<Pick<Run, "id" | "status" | "agentName" | "startedAt" | "playsDone" | "playsTotal">> }> {
+// One row of the /console/runs list payload (ConsoleView.run_summary). status masks
+// pending_approval → "running"; `pendingApproval` distinguishes it so the index can route correctly.
+export interface RunSummary {
+  id: string;
+  targetUrl: string;
+  agentName: string;
+  status: string;            // running | completed | failed
+  pendingApproval: boolean;
+  startedAt: string;         // approved_at ?? created_at (ISO, naive UTC)
+  createdAt: string;         // ISO, naive UTC
+  operator: string;
+  intensity?: string | null; // dial level from the run's ROE
+  playsTotal: number;        // planned (budget)
+  playsDone: number;         // attempts executed so far
+  note?: string | null;
+}
+
+export async function listRuns(): Promise<{ runs: RunSummary[] }> {
   const r = await req("/api/console/runs");
   return r.json();
 }

@@ -6,6 +6,8 @@ import { moduleScores, criticalRisks, summaryCounts } from "@/lib/score";
 import { PILLAR_LABEL, ORACLE_LABEL } from "@/lib/outcome";
 import { Logo } from "@/components/logo";
 import { PrintButton } from "@/components/print-button";
+import { RunNav } from "@/components/live/run-nav";
+import { RunFooter } from "@/components/run-footer";
 import { OutcomeBadge, ModuleTag, SeverityChip } from "@/components/badges";
 import { RunProvenance } from "@/components/findings";
 import { TranscriptTurn, JudgePanel, RegulationCite, DetectorHits } from "@/components/evidence";
@@ -23,6 +25,11 @@ export default function ReportPage() {
   const risks = criticalRisks(run, 50); // all non-PASS, worst first
 
   return (
+    <>
+      {/* In-run chrome so the report is not a navigation dead-end — hidden from the printed/PDF artifact. */}
+      <div className="print:hidden">
+        <RunNav runId={run.id} current="report" findingsReady={run.playsDone >= 1 || run.status !== "running"} />
+      </div>
     <main className="mx-auto max-w-3xl px-6 py-8 print:py-0">
       <div className="mb-6 flex items-center justify-between print:hidden">
         <Logo />
@@ -114,5 +121,9 @@ export default function ReportPage() {
         Proprietary &amp; confidential · © 2026 VipraTech Global · {run.engineVersion}
       </footer>
     </main>
+    <div className="print:hidden">
+      <RunFooter runId={run.id} agentName={run.agentName} ts={run.endedAt ?? run.startedAt} />
+    </div>
+    </>
   );
 }

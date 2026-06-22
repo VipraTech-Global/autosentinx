@@ -2,6 +2,7 @@ import Link from "next/link";
 import { cn } from "@/lib/cn";
 import type { ModuleScore, Observation, Run } from "@/lib/types";
 import { PILLAR_LABEL } from "@/lib/outcome";
+import { fmtIST } from "@/lib/time";
 import { SeverityChip, OutcomeBadge, ModuleTag } from "./badges";
 import { SectionLabel } from "./ui";
 
@@ -73,8 +74,8 @@ export function RunProvenance({ run }: { run: Run }) {
     ["Target", run.targetUrl],
     ["Agent", run.agentName],
     ["Operator", run.operator],
-    ["Started", run.startedAt ? `${run.startedAt} UTC` : "—"],
-    ["Ended", run.endedAt ? `${run.endedAt} UTC` : "—"],
+    ["Started", fmtIST(run.startedAt)],
+    ["Ended", fmtIST(run.endedAt)],
     ["Duration", run.durationSec ? `${Math.floor(run.durationSec / 60)}m ${run.durationSec % 60}s` : "—"],
     ["Engine", run.engineVersion],
     ["Scenario library", run.scenarioLibVersion],

@@ -28,6 +28,38 @@ from .target import AaravTarget
 
 log = logging.getLogger("autosentinx.runner")
 
+# Cooperative run-stop. POST /runs/{id}/stop adds a run_id here; the campaign loops check it BETWEEN
+# plays and halt gracefully (the in-flight play finishes first, then the run is marked completed with
+# whatever ran). Same-process only — the FastAPI BackgroundTask running the campaign and the stop
+# endpoint share this module, so a plain in-memory set is sufficient (no DB column / migration).
+_STOP_REQUESTED: set[str] = set()
+
+# In-flight live cursor (EP Wave 3 streaming) — mirrors _STOP_REQUESTED. The campaign loop writes the
+# currently-running play here (objective/technique/persona + a growing per-turn snapshot list); the
+# RunView projection reads it to render the in-flight 'running'/'judging' card. Same-process only (the
+# FastAPI BackgroundTask running the campaign and the runview endpoint share this module) — no DB column
+# / migration. Under gunicorn -w>1 the running card silently disappears (queued placeholders still work
+# off persisted state); the DB-persisted variant is the deferral for multi-worker durability.
+_LIVE: dict[str, dict] = {}
+
+
+def request_stop(run_id: str) -> None:
+    """Ask a running campaign to halt after the current play."""
+    _STOP_REQUESTED.add(run_id)
+
+
+def set_live(run_id: str, info: dict | None) -> None:
+    """Write (or clear, when info is None) the in-flight live cursor for a run."""
+    if info is None:
+        _LIVE.pop(run_id, None)
+    else:
+        _LIVE[run_id] = info
+
+
+def get_live(run_id: str) -> dict | None:
+    """Read the in-flight live cursor for a run (None when no play is in flight)."""
+    return _LIVE.get(run_id)
+
 # Neutral cooperative driver used for the fairness paired-runs (not an attack — observe treatment).
 _NEUTRAL_TECH = TechniqueSpec(
     slug="neutral-interaction", title="Neutral interaction", technique_class="probe",
@@ -124,6 +156,9 @@ class Runner:
                 recon = ReconProfile()
             await self._persist_recon(run_id, recon)
             for rs in runspecs:
+                if run_id in _STOP_REQUESTED:
+                    log.info("campaign %s stopped by operator after %d play(s)", run_id, done)
+                    break
                 spec = self.catalog.get(rs.objective_slug)
                 technique = self.library.technique(rs.technique_slug)
                 persona = self.library.persona(rs.persona_slug)
@@ -137,9 +172,15 @@ class Runner:
                     await self.store.add_attempt(attempt, [])
                     done += 1
                     continue
+                set_live(run_id, {
+                    "objective_slug": spec.slug, "technique_slug": technique.slug, "persona": persona.title,
+                    "pillar": spec.primary_pillar, "severity": spec.severity, "title": spec.title,
+                    "mode": spec.mode, "contact_id": None, "contact_name": "", "phase": "running", "turns": [],
+                })
                 try:
                     cid, d = await self._next_startable(target)
-                    attempt, turns = await self._run_one(target, run_id, rs, spec, technique, persona, recon, cid, d)
+                    attempt, turns = await self._run_one(target, run_id, rs, spec, technique, persona, recon, cid, d,
+                                                         live=get_live(run_id))
                 except Exception as e:  # noqa: BLE001
                     log.exception("runspec %s failed", rs.label)
                     attempt = Attempt(
@@ -152,6 +193,7 @@ class Runner:
                 if attempt.outcome == "succeeded":
                     succeeded += 1
                 await self.store.add_attempt(attempt, turns)
+                set_live(run_id, None)  # clear the running card the instant the real Attempt is persisted
                 done += 1
                 await self.store.set_run_status(run_id, "running", done, succeeded)
             await self.store.set_run_status(run_id, "completed", done, succeeded)
@@ -159,6 +201,8 @@ class Runner:
             log.exception("campaign %s failed", run_id)
             await self.store.set_run_status(run_id, "failed", done, succeeded)
         finally:
+            _STOP_REQUESTED.discard(run_id)
+            _LIVE.pop(run_id, None)
             await target.aclose()
 
     async def run_budget(self, run_id: str, objective_slugs: list[str] | None, budget: int,
@@ -201,15 +245,24 @@ class Runner:
             personas = self.library.personas()
 
             for k in range(budget):
+                if run_id in _STOP_REQUESTED:
+                    log.info("budget campaign %s stopped by operator after %d play(s)", run_id, done)
+                    break
                 o = objs[k % len(objs)]                          # round-robin → coverage preserved
                 techs = self.library.techniques_for(o.slug)
                 tslug = rng.choice(techs) if strategy == "random" else selector.select(o.slug, o.mode, techs)
                 persona = personas[k % len(personas)]
                 rs = RunSpec(objective_slug=o.slug, technique_slug=tslug, persona_slug=persona.slug, csrt=csrt)
                 technique = self.library.technique(tslug)
+                set_live(run_id, {
+                    "objective_slug": o.slug, "technique_slug": technique.slug, "persona": persona.title,
+                    "pillar": o.primary_pillar, "severity": o.severity, "title": o.title,
+                    "mode": o.mode, "contact_id": None, "contact_name": "", "phase": "running", "turns": [],
+                })
                 try:
                     cid, d = await self._next_startable(target)
-                    attempt, turns = await self._run_one(target, run_id, rs, o, technique, persona, recon, cid, d)
+                    attempt, turns = await self._run_one(target, run_id, rs, o, technique, persona, recon, cid, d,
+                                                         live=get_live(run_id))
                 except Exception as e:  # noqa: BLE001
                     log.exception("budget run %s failed", rs.label)
                     attempt = Attempt(
@@ -224,6 +277,7 @@ class Runner:
                 if attempt.outcome == "succeeded":
                     succeeded += 1
                 await self.store.add_attempt(attempt, turns)
+                set_live(run_id, None)  # clear the running card the instant the real Attempt is persisted
                 done += 1
                 await self.store.set_run_status(run_id, "running", done, succeeded)
             await self.store.set_run_status(run_id, "completed", done, succeeded)
@@ -231,6 +285,8 @@ class Runner:
             log.exception("budget campaign %s failed", run_id)
             await self.store.set_run_status(run_id, "failed", done, succeeded)
         finally:
+            _STOP_REQUESTED.discard(run_id)
+            _LIVE.pop(run_id, None)
             await target.aclose()
 
     async def run_fairness(self, run_id: str, objective_slug: str = "fairness.disparate-treatment",
@@ -323,12 +379,14 @@ class Runner:
         return Attempt(outcome="sample", num_turns=len(turns), **base), turns
 
     async def _run_one(self, target, run_id, rs: RunSpec, spec, technique, persona,
-                       recon: ReconProfile, contact_id: int, d: dict):
+                       recon: ReconProfile, contact_id: int, d: dict, live: dict | None = None):
         belief = BeliefState()
         sid = d.get("session_id")
         name = d.get("contact_name", "")
         opening = d.get("agent_text", "")
         turns: list[Turn] = []
+        if live is not None:
+            live["contact_name"] = name
 
         def _attempt(**kw):
             return Attempt(
@@ -360,6 +418,12 @@ class Runner:
                 compliance_clean=resp.get("compliance_clean"),
                 violations=json.dumps(resp.get("violations", [])),
             ))
+            if live is not None:  # stream the running card's ribbon per-turn (no DB write mid-flight)
+                live["turns"].append({
+                    "idx": idx, "phase": ph.name, "intent": ph.intent, "attacker": line,
+                    "agent": reply, "label": label or "Unknown",
+                    "complianceClean": resp.get("compliance_clean"),
+                })
             belief.turn = idx + 1
             # D9 fix: only early-stop once the technique has run its full arc (reached the last phase),
             # so a turn-0 classifier false-positive can't cut multi-turn techniques short.
@@ -375,6 +439,8 @@ class Runner:
 
         # Authoritative verdict — routed by mode (special oracle or StrongREJECT panel) + detector evidence
         hits = run_detectors(turns)
+        if live is not None:  # flip the running card to 'judging' during scoring
+            live["phase"] = "judging"
         pv = await self._oracle_verdict(spec, turns)
         outcome = {"SUCCEEDED": "succeeded", "DEFENDED": "defended", "UNKNOWN": "unknown"}.get(
             pv.outcome, "defended"

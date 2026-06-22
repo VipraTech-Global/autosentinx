@@ -40,3 +40,6 @@ PHASE-*.md
 
 # Cloud Run env vars (contains secrets)
 deploy.env.yaml
+
+# Local-only: chat archives (secrets), test drivers, capture dumps — never commit
+_LOCAL_EXCLUDED/

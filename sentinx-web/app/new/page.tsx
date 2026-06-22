@@ -9,6 +9,7 @@ import { startScan, approveScan } from "@/lib/api";
 import { IntensityDial } from "@/components/live/intensity-dial";
 import { INTENSITY } from "@/lib/intensity";
 import type { IntensityLevel } from "@/lib/runview";
+import { getRole } from "@/lib/role";
 
 type Phase = "form" | "checking" | "approve" | "approving";
 
@@ -50,7 +51,10 @@ export default function RunConfigPage() {
     setPhase("approving");
     try {
       await approveScan(runId);
-      router.push(`/runs/${runId}/processing`);
+      // Live personas (Admin/QA, Security) drop straight into the live duel as it streams; others
+      // watch the Processing rail, then land on their home screen (processing-view handles that).
+      const role = getRole();
+      router.push(role === "admin" || role === "security" ? `/runs/${runId}/arena` : `/runs/${runId}/processing`);
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : "Approval failed.");
       setPhase("approve");

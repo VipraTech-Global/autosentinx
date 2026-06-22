@@ -13,9 +13,17 @@ export const ROLES: { id: Role; label: string; persona: string; home: string }[]
 
 export type RunScreen = "overview" | "live" | "findings" | "report" | "processing";
 
-/** V2 Arena + V3 Forensic are RESTRICTED — only Admin/QA and Security may see the live duel
- *  (user, 2026-06-20). Everyone else sees Overview/Findings/Report/Processing but not Live. */
-export const canSeeLive = (role: Role) => role === "admin" || role === "security";
+// Server-side role-based access control is NOT yet implemented (backend RBAC is deferred — see
+// `design documentation/live-views/PERSONA-NAV-MODEL.md` for each persona's intended nav paths).
+// Until it lands, EVERY logged-in user can open EVERY screen; the role is a client-side "viewing as"
+// convenience that drives only WHERE a persona LANDS, not what they may access. Flip RBAC_ENFORCED
+// to true (and enforce it server-side) to switch on the documented per-persona restrictions.
+export const RBAC_ENFORCED = false;
+
+/** May this role see the live duel (V2 Arena / V3 Forensic)? Open to everyone until RBAC lands
+ *  (user, 2026-06-21). The intended restriction — Admin/QA + Security only (D-LV27) — is preserved
+ *  behind RBAC_ENFORCED and documented in PERSONA-NAV-MODEL.md. */
+export const canSeeLive = (role: Role) => !RBAC_ENFORCED || role === "admin" || role === "security";
 
 /** Each role's home SCREEN (personas §ownership: Admin→Arena, Security→Forensic, Exec→Overview, Compliance→Findings). */
 export const roleHomeScreen: Record<Role, RunScreen> = {
@@ -25,25 +33,23 @@ export const roleHomeScreen: Record<Role, RunScreen> = {
   compliance: "findings",
 };
 
-/** Build the route for a screen. `data` (the fixture/live source) is carried so review mode keeps working. */
-export function screenHref(screen: RunScreen, runId: string, opts?: { data?: string; playIdx?: number }): string {
-  const q = opts?.data ? `?data=${opts.data}` : "";
+/** Build the route for an in-run screen. Real runs are always engine-backed (the live duel reads
+ *  the server RunView), so no source param is threaded — the canned demos live on /canned-examples. */
+export function screenHref(screen: RunScreen, runId: string): string {
   switch (screen) {
     case "overview": return `/runs/${runId}`;
     case "findings": return `/runs/${runId}/findings`;
     case "report": return `/runs/${runId}/report`;
     case "processing": return `/runs/${runId}/processing`;
-    case "live": return `/runs/${runId}/arena${q}`;
+    case "live": return `/runs/${runId}/arena`;
   }
 }
 
-/** Where a role lands when picked. Security goes straight into a play's Forensic; others to their screen. */
-export function roleHref(role: Role, runId: string, opts?: { data?: string; firstPlay?: number }): string {
-  if (role === "security") {
-    const q = opts?.data ? `?data=${opts.data}` : "";
-    return `/runs/${runId}/arena/${opts?.firstPlay ?? 0}/forensic${q}`;
-  }
-  return screenHref(roleHomeScreen[role], runId, { data: opts?.data });
+/** Where a role lands when picked. Security opens a play's Forensic (firstPlay resolved by the
+ *  caller to a real, started play); everyone else lands on their home screen. */
+export function roleHref(role: Role, runId: string, opts?: { firstPlay?: number }): string {
+  if (role === "security") return `/runs/${runId}/arena/${opts?.firstPlay ?? 0}/forensic`;
+  return screenHref(roleHomeScreen[role], runId);
 }
 
 const KEY = "sx_role";

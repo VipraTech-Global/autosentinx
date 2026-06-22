@@ -17,6 +17,7 @@ from typing import Optional
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
+from sqlmodel import select
 
 from autosentinx.audit import append_event, verify_chain
 from autosentinx.catalog import Catalog
@@ -29,7 +30,7 @@ from autosentinx.ingestion import ingest
 from autosentinx.library import Library, enumerate_runs
 from autosentinx.llm import make_llm
 from autosentinx.models import Run, User, _now
-from autosentinx.runner import Runner
+from autosentinx.runner import Runner, request_stop, get_live
 from autosentinx.security import _decode, authenticate, create_access_token, create_user, current_user
 from autosentinx.selection import Selector
 from autosentinx.store import SqlModelStore
@@ -43,6 +44,21 @@ async def lifespan(app: FastAPI):
     await asyncio.to_thread(
         subprocess.run, [sys.executable, "-m", "alembic", "upgrade", "head"], check=False
     )
+    # Reap orphaned runs. A campaign executes as a FastAPI BackgroundTask, which does NOT survive a
+    # process restart — so any run still 'running' at startup was interrupted mid-flight and has no
+    # live loop (the cooperative Stop can't reach a dead task). Mark such runs 'failed' so they leave
+    # the live state. pending_approval runs are legitimately awaiting approval and are left untouched.
+    try:
+        async with SessionLocal() as sess:
+            stale = (await sess.execute(select(Run).where(Run.status == "running"))).scalars().all()
+            for r in stale:
+                r.status = "failed"
+                sess.add(r)
+            if stale:
+                await sess.commit()
+                print(f"[startup] reaped {len(stale)} interrupted run(s) (server restart)", flush=True)
+    except Exception as e:  # noqa: BLE001
+        print(f"[startup] reaper failed: {e}", flush=True)
     yield
 
 
@@ -215,6 +231,22 @@ async def approve_run(run_id: str, background: BackgroundTasks, user: User = Dep
     return {"run_id": run_id, "status": "running", "approved_by": approver}
 
 
+@app.post("/runs/{run_id}/stop")
+async def stop_run(run_id: str, user: User = Depends(current_user)):
+    """Operator stop — halt a RUNNING campaign. Cooperative: the in-flight play finishes, then the
+    runner halts between plays and the run is marked completed with whatever ran (partial findings
+    remain available). Audited to the authenticated principal."""
+    d = await store.get_run(run_id)
+    if not d:
+        raise HTTPException(status_code=404, detail="run not found")
+    run = d["run"]
+    if run.status != "running":
+        return {"run_id": run_id, "status": run.status, "stopping": False}
+    request_stop(run_id)
+    await append_event("scan.stopped", run_id=run_id, actor=user.email, detail={})
+    return {"run_id": run_id, "status": "running", "stopping": True}
+
+
 @app.get("/catalog")
 async def catalog(
     family: Optional[str] = Query(None),
@@ -370,8 +402,9 @@ async def audit(run_id: Optional[str] = Query(None, description="scope to one ru
 
 
 @app.get("/console/runs")
-async def console_runs():
-    """Run list in the frontend (sentinx-web) view-model shape."""
+async def console_runs(user: User = Depends(current_user)):
+    """Run list in the frontend (sentinx-web) view-model shape. Requires an authenticated session
+    (defence-in-depth: the BFF already gates this, but the raw origin must not be open)."""
     catalog = await Catalog.load()
     cv = ConsoleView(catalog)
     runs = await store.list_runs()
@@ -379,7 +412,7 @@ async def console_runs():
 
 
 @app.get("/console/runs/{run_id}")
-async def console_run(run_id: str):
+async def console_run(run_id: str, user: User = Depends(current_user)):
     """One run + observations in the frontend view-model shape (catalog-joined, D8 split, fairness grouped)."""
     d = await store.get_run(run_id)
     if not d:
@@ -389,7 +422,7 @@ async def console_run(run_id: str):
 
 
 @app.get("/console/runs/{run_id}/runview")
-async def console_run_runview(run_id: str, audience: str = "internal"):
+async def console_run_runview(run_id: str, audience: str = "internal", user: User = Depends(current_user)):
     """Live-duel RunView projection (D-LV-dep3) — sibling of /console/runs/{id} on the same polled,
     auth-gated surface. Emits the state.json-shaped RunView the Live Views consume (fromStateJson).
     Loads catalog AND library (RunView needs phasePlan). audience=internal shows model names (D-LV6);
@@ -400,7 +433,7 @@ async def console_run_runview(run_id: str, audience: str = "internal"):
     catalog = await Catalog.load()
     library = await Library.load()
     rv = RunViewProjection(catalog, library).run_runview(
-        d["run"], d["attempts"], json.loads(d["run"].roe or "{}"))
+        d["run"], d["attempts"], json.loads(d["run"].roe or "{}"), live=get_live(run_id))
     if audience == "customer":  # internal-only today; collapse model names if ever surfaced customer-side
         for p in rv["plays"]:
             for i, v in enumerate((p.get("verdict") or {}).get("votes", [])):

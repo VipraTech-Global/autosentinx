@@ -432,3 +432,43 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ============================================================
+   RUN-INTENSITY slider — a heat ramp (cool brand → amber → red) that
+   escalates with effort, culminating in the ULTRA moment. Every colour
+   resolves from the SENTINX tokens; all motion degrades to a static
+   intense gradient under prefers-reduced-motion (the global reset above).
+   ============================================================ */
+
+/* A slow shimmer sweeping the hottest part of the ramp (loops seamlessly:
+   the gradient is symmetric brand…brand, tiled at 200%). */
+@keyframes intensity-sweep {
+  from { background-position: 0% 50%; }
+  to   { background-position: 200% 50%; }
+}
+
+/* Ultra fill — the whole ramp, alive and breathing. */
+.intensity-fill-ultra {
+  background-image: linear-gradient(90deg,
+    var(--brand) 0%, var(--warn) 28%, var(--fail) 50%, var(--warn) 72%, var(--brand) 100%);
+  background-size: 200% 100%;
+  animation: intensity-sweep 2.4s linear infinite;
+}
+
+/* Ultra thumb — a soft red glow that breathes; the inner ring keeps it legible on the track. */
+@keyframes intensity-glow {
+  0%, 100% { box-shadow: 0 0 0 2px var(--surface), 0 0 6px 1px color-mix(in srgb, var(--fail) 50%, transparent); }
+  50%      { box-shadow: 0 0 0 2px var(--surface), 0 0 13px 3px color-mix(in srgb, var(--fail) 85%, transparent); }
+}
+.intensity-thumb-ultra { animation: intensity-glow 1.8s ease-in-out infinite; }
+
+/* Ultra word — shimmering gradient text: the SENTINX answer to Claude Code's ultra moment. */
+.intensity-word-ultra {
+  background-image: linear-gradient(90deg,
+    var(--brand), var(--warn), var(--fail), var(--warn), var(--brand));
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: intensity-sweep 2.4s linear infinite;
+}

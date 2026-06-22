@@ -117,12 +117,20 @@ class ConsoleView:
     def run_summary(self, run) -> dict:
         status = "running" if run.status in ("running", "pending_approval") else run.status
         try:
-            budget = int(json.loads(run.roe or "{}").get("budget") or run.num_attempts)
+            roe = json.loads(run.roe or "{}")
+        except Exception:  # noqa: BLE001
+            roe = {}
+        try:
+            budget = int(roe.get("budget") or run.num_attempts)
         except Exception:  # noqa: BLE001
             budget = run.num_attempts
         return {
             "id": run.id, "targetUrl": run.target_url, "agentName": self._agent_name(run),
-            "status": status, "startedAt": (run.approved_at or run.created_at).isoformat(),
+            "status": status,                              # pending_approval is masked to "running"…
+            "pendingApproval": run.status == "pending_approval",  # …so expose the real distinction here
+            "startedAt": (run.approved_at or run.created_at).isoformat(),
+            "createdAt": run.created_at.isoformat(),
+            "intensity": roe.get("intensity"),             # dial level (low|med|high|…) from the ROE
             "operator": run.approved_by or "operator",
             "playsTotal": max(budget, run.num_attempts),   # planned (budget)
             "playsDone": run.num_attempts,                 # attempts executed so far

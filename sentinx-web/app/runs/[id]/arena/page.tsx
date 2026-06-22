@@ -1,66 +1,62 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Arena from "@/components/live/arena";
-import { fromStateJson, type RunView } from "@/lib/runview";
+import { type RunView } from "@/lib/runview";
 import { getRunView } from "@/lib/api";
 import { RunNav } from "@/components/live/run-nav";
+import { StopRunButton } from "@/components/stop-run-button";
 import { getRole, canSeeLive, screenHref, type Role } from "@/lib/role";
-
-const SAMPLES = ["both-pillar-live", "both-pillar-full", "recon-demo", "estimate-demo", "live-8play", "fixture-3play", "midrun", "degraded"] as const;
 
 export default function ArenaPage() {
   const params = useParams<{ id: string }>();
-  const search = useSearchParams();
   const router = useRouter();
-  const data = search.get("data") ?? "live-8play";
-  const runId = String(params?.id ?? "ER-LIVE");
-  const isEngine = data === "engine";              // real server-side RunView (Wave 2); else a fixture / dev-bridge
-  const livePoll = isEngine || search.get("live") === "1"; // poll the source as the run streams (D-Q15 2500ms)
+  const runId = String(params?.id ?? "");
   const [run, setRun] = useState<RunView | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
+  // Real runs are ALWAYS engine-backed: poll the server RunView until the run reaches a terminal
+  // status. Canned demos are NOT served here — they live on /canned-examples (off this nav).
   useEffect(() => {
     let active = true;
-    let loaded = false;            // has a poll ever populated run? a first-load engine error must surface, not spin forever (CR-P2b)
+    let loaded = false;            // has a poll ever populated run? a first-load error must surface, not spin forever (CR-P2b)
     let iv: ReturnType<typeof setInterval> | undefined;
     setRun(null); setErr(null);
-    // engine source → getRunView(id); else fixture/dev-bridge → fetch + fromStateJson (R1-B2: one shared adapter)
-    const loadOne = (): Promise<RunView> =>
-      isEngine
-        ? getRunView(runId)
-        : fetch(`/runs/${data}.json`, { cache: "no-store" })
-            .then((r) => { if (!r.ok) throw new Error(`load ${data} failed`); return r.json(); })
-            .then((raw) => fromStateJson(raw, runId));
     const load = () =>
-      loadOne()
+      getRunView(runId)
         .then((rv) => {
           if (!active) return;
           loaded = true;
           setRun(rv); setErr(null);
           const terminal = rv.status === "done" || rv.status === "failed" || rv.status === "blocked";
-          if (livePoll && terminal && iv) { clearInterval(iv); iv = undefined; }
+          if (terminal && iv) { clearInterval(iv); iv = undefined; }
         })
         .catch((e) => {
           if (!active) return;
-          if (isEngine && /401|unauthor/i.test(String(e))) setErr("Log in to view the live run.");
-          else if (!livePoll) setErr(String(e));
-          else if (isEngine && !loaded) setErr(String(e));   // first-load hard error (404/500/network) must surface, not spin forever (CR-P2b)
-          // else: transient poll miss mid-stream is fine — keep the last good frame
+          if (/401|unauthor/i.test(String(e))) setErr("Log in to view the live run.");
+          else if (!loaded) setErr(String(e));   // first-load hard error (404/500/network) must surface (CR-P2b)
+          // else: a transient poll miss mid-stream is fine — keep the last good frame
         });
     load();
-    if (livePoll) iv = setInterval(load, 2500);
+    iv = setInterval(load, 1000); // 1s poll → the in-memory live cursor (queued + streaming turns) surfaces near-instantly
     return () => { active = false; if (iv) clearInterval(iv); };
-  }, [data, runId, livePoll, isEngine]);
+  }, [runId]);
 
-  // access gate: V2/V3 restricted to Admin/QA + Security (role read client-side; null until mounted)
+  // access gate (client-side until backend RBAC lands; open to all today — see lib/role.ts)
   const [role, setRoleState] = useState<Role | null>(null);
   useEffect(() => setRoleState(getRole()), []);
   const restricted = role !== null && !canSeeLive(role);
+  const firstPlayIdx = (run?.plays.find((p) => p.status === "done") ?? run?.plays[0])?.idx ?? 0;
+  const terminal = run ? (run.status === "done" || run.status === "failed" || run.status === "blocked") : false;
+  // Findings/Report unlock once the first attack has produced a result; Detail (V3) unlocks once the
+  // first play has STARTED (before that there is only recon, nothing to drill into).
+  const findingsReady = !!run && (run.summary.done >= 1 || terminal);
+  const playsStarted = !!run && (run.plays.some((p) => p.status === "running" || p.status === "judging" || p.status === "done") || terminal);
+  const detailIdx = (run?.plays.find((p) => p.status === "done") ?? run?.plays.find((p) => p.status === "running" || p.status === "judging"))?.idx ?? 0;
 
   return (
     <div className="min-h-dvh bg-bg text-ink">
-      <RunNav runId={runId} current="live" runLabel={run?.id} target={run?.target || undefined} data={data} />
+      <RunNav runId={runId} current="live" runLabel={run?.id} target={run?.target || undefined} firstPlayIdx={firstPlayIdx} findingsReady={findingsReady} />
       {role === null ? (
         <div className="max-w-[700px] mx-auto mt-24 text-center mono text-ink-faint text-[12px]">resolving access…</div>
       ) : restricted ? (
@@ -72,36 +68,34 @@ export default function ArenaPage() {
       ) : (
       <>
 
-      {/* Live sub-bar — the live-duel-specific controls (zoom · Arena⇄Processing · sample · badges) */}
+      {/* Live sub-bar — the live-duel-specific controls (zoom · Arena⇄Processing · live status) */}
       <div className="sticky top-14 z-10 flex items-center gap-2.5 px-5 min-h-11 py-1.5 border-b border-border bg-surface/60 backdrop-blur flex-wrap">
         <span className="text-ink-faint text-[10.5px] mono uppercase tracking-[0.13em]">live duel</span>
         {run?.intensity ? <span className="mono text-[11px] text-ink-muted">intensity · <span className="text-ink">{run.intensity}</span></span> : null}
-        {livePoll && run ? (
-          run.status === "done" || run.status === "failed" || run.status === "blocked"
+        {run ? (
+          terminal
             ? <span className="mono text-[11px] text-ink-faint inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-ink-faint" />run complete</span>
             : <span className="mono text-[11px] inline-flex items-center gap-1.5" style={{ color: "var(--fail-text)" }}><span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--fail)" }} />LIVE</span>
         ) : null}
-        {livePoll && !isEngine ? <span className="mono text-[10px] uppercase tracking-wide text-warn-text border border-warn-text/40 rounded px-1.5 py-0.5" title="Dev bridge: the engine run is real, but login + scan are mocked and the ROE-approval gate is skipped. Previews the parked engine port (D-LV26).">dev bridge</span> : null}
-        {isEngine ? <span className="mono text-[10px] uppercase tracking-wide text-ink-faint border border-border rounded px-1.5 py-0.5" title="Live from the engine — GET /console/runs/{id}/runview (D-LV-dep3)">engine</span> : null}
         <span className="flex-1" />
-        {/* zoom: Arena(V2) · Detail(V3) — Glance(V1) removed until V1 ships (PX-1, D-LV23) */}
+        {/* Stop the run — only while it is live (post-approval, pre-completion) */}
+        {run && !terminal ? <StopRunButton runId={runId} size="sm" /> : null}
+        {/* view-switcher: Arena(V2) · Detail(V3) · Passive — Detail gated until the first play has STARTED
+            (only recon before that); Passive is the phase-rail/processing view, now a peer toggle segment */}
         <span className="inline-flex border border-border rounded-md overflow-hidden text-[11px] mono">
-          <span className="px-2.5 py-1 bg-surface-sunk text-ink font-medium">Arena</span>
-          <button className="px-2.5 py-1 text-ink-muted border-l border-border hover:bg-surface-sunk" onClick={() => run && router.push(`/runs/${params?.id}/arena/${run.plays.find((p) => p.status === "done")?.idx ?? 0}/forensic?data=${data}`)}>Detail</button>
+          <span className="px-2.5 py-1 bg-brand text-on-brand font-medium">Arena</span>
+          {playsStarted ? (
+            <button className="px-2.5 py-1 text-ink-muted border-l border-border hover:bg-surface-sunk" onClick={() => router.push(`/runs/${params?.id}/arena/${detailIdx}/forensic`)}>Detail</button>
+          ) : (
+            <span aria-disabled="true" title="Available once the first attack starts" className="px-2.5 py-1 text-ink-faint border-l border-border opacity-40 cursor-not-allowed select-none">Detail</span>
+          )}
+          <button className="px-2.5 py-1 text-ink-muted border-l border-border hover:bg-surface-sunk" onClick={() => router.push(`/runs/${runId}/processing`)}>Passive</button>
         </span>
-        {/* Arena ⇄ Processing — the classic live screen (C4); temporary, OPEN-LV1 */}
-        <button className="text-[11px] mono text-ink-muted border border-border rounded-md px-2.5 py-1 hover:border-brand inline-flex items-center gap-1" title="the classic Processing screen (C4) — temporary while V2-vs-C4 is unresolved (OPEN-LV1)" onClick={() => router.push(`/runs/${params?.id}/processing`)}>Processing ↗</button>
-        {/* sample switcher (build/test aid, OPEN-LV3 / PX-2) — dev-only: visible in the review server, gone in a production build */}
-        {process.env.NODE_ENV !== "production" ? (
-          <select value={data} onChange={(e) => router.replace(`?data=${e.target.value}`)} className="mono text-[11px] bg-surface border border-border rounded-md px-2 py-1 text-ink-muted">
-            {SAMPLES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        ) : null}
       </div>
 
       {err ? <div className="max-w-[700px] mx-auto mt-20 text-center mono text-fail-text">{err}</div> : null}
-      {!run && !err ? <div className="max-w-[700px] mx-auto mt-20 text-center mono text-ink-faint">loading {data}…</div> : null}
-      {run ? <Arena run={run} onDrillToV3={(idx) => router.push(`/runs/${params?.id}/arena/${idx}/forensic?data=${data}`)} /> : null}
+      {!run && !err ? <div className="max-w-[700px] mx-auto mt-20 text-center mono text-ink-faint">loading live run…</div> : null}
+      {run ? <Arena run={run} onDrillToV3={(idx) => router.push(`/runs/${params?.id}/arena/${idx}/forensic`)} /> : null}
       </>
       )}
     </div>

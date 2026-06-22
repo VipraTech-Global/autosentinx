@@ -15,12 +15,12 @@ export interface IntensityConfig {
 }
 
 export const INTENSITY: Record<IntensityLevel, IntensityConfig> = {
-  low:   { level: "low",   label: "Low",    attacks: 8,    turns: 8,  breadth: 1, blurb: "Quick smoke — top-severity objectives only." },
-  med:   { level: "med",   label: "Medium", attacks: 16,   turns: 16, breadth: 1, blurb: "Standard — both pillars, doubled coverage + presses." },
-  high:  { level: "high",  label: "High",   attacks: 28,   turns: 18, breadth: 2, blurb: "Thorough — broad coverage, two attack styles per objective." },
-  xhigh: { level: "xhigh", label: "X-High", attacks: 40,   turns: 20, breadth: 2, blurb: "Broad — most objectives across both pillars." },
-  max:   { level: "max",   label: "Max",    attacks: 60,   turns: 24, breadth: 3, blurb: "Near-exhaustive — deep, multi-style coverage." },
-  ultra: { level: "ultra", label: "Ultra",  attacks: "all", turns: 30, breadth: 99, blurb: "Exhaustive audit — full catalog × all techniques." },
+  low:   { level: "low",   label: "Low",    attacks: 8,    turns: 8,  breadth: 1, blurb: "Quick smoke — top-severity only." },
+  med:   { level: "med",   label: "Medium", attacks: 16,   turns: 16, breadth: 1, blurb: "Standard sweep — both pillars." },
+  high:  { level: "high",  label: "High",   attacks: 28,   turns: 18, breadth: 2, blurb: "Thorough — two styles per objective." },
+  xhigh: { level: "xhigh", label: "X-High", attacks: 40,   turns: 20, breadth: 2, blurb: "Broad — most objectives, both pillars." },
+  max:   { level: "max",   label: "Max",    attacks: 60,   turns: 24, breadth: 3, blurb: "Near-exhaustive, multi-style." },
+  ultra: { level: "ultra", label: "Ultra",  attacks: "all", turns: 30, breadth: 99, blurb: "Exhaustive — full catalog × all techniques." },
 };
 
 export const LEVELS: IntensityLevel[] = ["low", "med", "high", "xhigh", "max", "ultra"];

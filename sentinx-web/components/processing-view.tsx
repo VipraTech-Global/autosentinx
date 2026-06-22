@@ -4,9 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Radio } from "lucide-react";
 import { useRun } from "@/lib/use-run";
+import { getRunView } from "@/lib/api";
+import { getRole } from "@/lib/role";
+import { type RunView } from "@/lib/runview";
 import { OutcomeBadge, ModuleTag, SeverityChip } from "@/components/badges";
-import { Logo } from "@/components/logo";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { StopRunButton } from "@/components/stop-run-button";
+import { RunNav } from "@/components/live/run-nav";
 
 const PHASES = ["Recon", "Running plays", "Classifying", "Compiling findings"] as const;
 
@@ -24,6 +27,17 @@ export function ProcessingView({ runId }: { runId: string }) {
   const router = useRouter();
   const { run, error, stalled } = useRun(runId, 1800); // poll until status leaves "running"
   const navigated = useRef(false);
+
+  // Poll the RunView too, so this (Passive) view carries the SAME live sub-bar (Arena·Detail·Passive
+  // toggle + LIVE indicator) as the Arena/Forensic screens — identical chrome across the live views.
+  const [rv, setRv] = useState<RunView | null>(null);
+  useEffect(() => {
+    let on = true;
+    const load = () => getRunView(runId).then((v) => { if (on) setRv(v); }).catch(() => {});
+    load();
+    const iv = setInterval(load, 1500);
+    return () => { on = false; clearInterval(iv); };
+  }, [runId]);
 
   const finished = run != null && run.status !== "running";
 
@@ -45,7 +59,14 @@ export function ProcessingView({ runId }: { runId: string }) {
   useEffect(() => {
     if (finished && !navigated.current) {
       navigated.current = true;
-      const t = setTimeout(() => router.push(`/runs/${runId}`), 1100);
+      // Land each persona on their home screen (Admin/Security → live Arena, Compliance → Findings,
+      // Exec/other → Overview). Access is open to all today; this is the default landing only.
+      const role = getRole();
+      const dest =
+        role === "admin" || role === "security" ? `/runs/${runId}/arena`
+        : role === "compliance" ? `/runs/${runId}/findings`
+        : `/runs/${runId}`;
+      const t = setTimeout(() => router.push(dest), 1100);
       return () => clearTimeout(t);
     }
   }, [finished, router, runId]);
@@ -59,19 +80,38 @@ export function ProcessingView({ runId }: { runId: string }) {
   // finish. Polling self-recovers now (use-run), so Recon advances instead of getting stuck.
   const phaseIdx = !run ? 0 : finished ? 3 : done === 0 ? 0 : total > 0 && done >= total ? 2 : 1;
 
-  return (
-    <main className="flex min-h-screen flex-col">
-      <header className="border-b border-border">
-        <div className="mx-auto flex h-14 max-w-4xl items-center px-5 py-2.5">
-          <Logo />
-          <span className="ml-3 mono text-[12px] text-ink-muted">
-            {stalled ? "stalled" : finished ? "completing" : "live"} · {runId.slice(0, 8)}
-          </span>
-          <div className="ml-auto"><ThemeToggle /></div>
-        </div>
-      </header>
+  // live sub-bar values, derived from the RunView poll
+  const plays = rv?.plays ?? [];
+  const rterminal = rv ? ["done", "failed", "blocked"].includes(rv.status) : finished;
+  const playsStarted = plays.some((p) => p.status === "running" || p.status === "judging" || p.status === "done") || rterminal;
+  const detailIdx = (plays.find((p) => p.status === "running" || p.status === "judging") ?? plays.find((p) => p.status === "done") ?? plays.find((p) => p.status !== "queued"))?.idx ?? 0;
+  const firstPlayIdx = (plays.find((p) => p.status === "done") ?? plays.find((p) => p.status !== "queued") ?? plays[0])?.idx ?? 0;
+  const findingsReady = (run?.playsDone ?? 0) >= 1 || (run != null && run.status !== "running");
 
-      <div className="mx-auto w-full max-w-4xl flex-1 px-5 py-10">
+  return (
+    <div className="min-h-dvh bg-bg text-ink">
+      <RunNav runId={runId} current="live" runLabel={rv?.id} target={rv?.target || undefined} firstPlayIdx={firstPlayIdx} findingsReady={findingsReady} />
+      {/* live sub-bar — identical to Arena/Forensic; Passive is the active toggle segment */}
+      <div className="sticky top-14 z-10 flex items-center gap-2.5 px-5 min-h-11 py-1.5 border-b border-border bg-surface/60 backdrop-blur flex-wrap">
+        <span className="text-ink-faint text-[10.5px] mono uppercase tracking-[0.13em]">live duel</span>
+        {rv?.intensity ? <span className="mono text-[11px] text-ink-muted">intensity · <span className="text-ink">{rv.intensity}</span></span> : null}
+        {rterminal
+          ? <span className="mono text-[11px] text-ink-faint inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-ink-faint" />run complete</span>
+          : <span className="mono text-[11px] inline-flex items-center gap-1.5" style={{ color: "var(--fail-text)" }}><span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--fail)" }} />LIVE</span>}
+        <span className="flex-1" />
+        {!finished ? <StopRunButton runId={runId} size="sm" /> : null}
+        <span className="inline-flex border border-border rounded-md overflow-hidden text-[11px] mono">
+          <button className="px-2.5 py-1 text-ink-muted hover:bg-surface-sunk" onClick={() => router.push(`/runs/${runId}/arena`)}>Arena</button>
+          {playsStarted ? (
+            <button className="px-2.5 py-1 text-ink-muted border-l border-border hover:bg-surface-sunk" onClick={() => router.push(`/runs/${runId}/arena/${detailIdx}/forensic`)}>Detail</button>
+          ) : (
+            <span aria-disabled="true" title="Available once the first attack starts" className="px-2.5 py-1 text-ink-faint border-l border-border opacity-40 cursor-not-allowed select-none">Detail</span>
+          )}
+          <span className="px-2.5 py-1 bg-brand text-on-brand font-medium border-l border-border">Passive</span>
+        </span>
+      </div>
+
+      <div className="mx-auto w-full max-w-4xl px-5 py-10">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-semibold text-ink">Auditing target</h1>
@@ -154,7 +194,7 @@ export function ProcessingView({ runId }: { runId: string }) {
           <p className="mt-6 text-center text-[12.5px] text-ink-muted">Compiling findings — opening report…</p>
         )}
       </div>
-    </main>
+    </div>
   );
 }
 

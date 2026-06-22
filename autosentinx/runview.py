@@ -81,9 +81,13 @@ class RunViewProjection:
         self.catalog = catalog
         self.library = library
 
-    def run_runview(self, run, attempts: list[dict], run_roe: dict) -> dict:
+    def run_runview(self, run, attempts: list[dict], run_roe: dict, live=None) -> dict:
         """`run_roe` = json.loads(run.roe or '{}'). Param named run_roe to disambiguate from the
-        keystones autosentinx/roe.py policy module (R1-minor)."""
+        keystones autosentinx/roe.py policy module (R1-minor).
+
+        `live` (EP Wave 3 streaming) = the in-memory _LIVE cursor for the in-flight play (runner._LIVE),
+        or None. When present on a still-running run, the board pre-loads the full plan as 'queued…' rows
+        and streams the one in-flight play as a 'running'/'judging' card."""
         s = get_settings()
         max_turns = int(run_roe.get("max_turns") or s.max_turns)  # MUST be an int even Phase-1 (R1-minor)
 
@@ -102,6 +106,20 @@ class RunViewProjection:
             else:
                 pillar = spec.primary_pillar if spec else "compliance"
                 plays.append(self._play(attempt, turns, spec, pillar, None, max_turns, None))
+
+        # Streaming placeholders (EP Wave 3). started basis = len(plays) — the projection's OWN play
+        # count (fairness 'sample' rows already skipped, dual-duty pairs already split into 2), NOT raw
+        # num_attempts. Queued/running rows are emitted ONLY while the run is still live; a finished short
+        # run must never show phantom queued rows.
+        planned = int(run_roe.get("budget") or 0)
+        started = len(plays)
+        live_present = bool(live) and run.status == "running"
+        if live_present:
+            plays.append(self._running_play(live))
+            started += 1
+        queued_count = max(0, planned - started) if run.status in ("running", "pending_approval") else 0
+        for i in range(queued_count):
+            plays.append(self._queued_play(i))
 
         # assign idx, then back-fill pairedIdx for dual-duty pairs (two-pass, EP-R5)
         for i, p in enumerate(plays):
@@ -142,6 +160,11 @@ class RunViewProjection:
         omitted — the engine does not derive intel→objective threads (that's a UI/demo concept)."""
         raw = (getattr(run, "recon", "") or "").strip()
         if not raw:
+            # No recon persisted yet. Recon is profiled at campaign start and persisted as it lands,
+            # so on a still-LIVE run an empty column just means "not scouted yet" → pending, NOT blocked.
+            # Only a TERMINAL run that retained no recon is genuinely 'skipped'/not-retained.
+            if run.status not in ("completed", "failed"):
+                return {"status": "pending", "reason": "scouting in progress"}
             return {"status": "skipped", "reason": "no recon profile retained for this run"}
         try:
             r = json.loads(raw)
@@ -191,6 +214,45 @@ class RunViewProjection:
             "verdict": self._verdict(attempt, turns, status),
             "incidentId": incident,
             "contact": {"id": attempt.contact_id, "name": attempt.contact_name},
+        }
+
+    def _queued_play(self, i: int) -> dict:
+        """A placeholder 'queued…' row mirroring _play's keys, all empty/neutral. The bandit's next pick
+        is non-deterministic, so we NEVER fabricate technique/objective names — honest 'queued attack'
+        label (same never-fabricate discipline as _recon). Pillar is alternated security/compliance only
+        to seed both bands. verdict MUST be None (not a partial dict) so runview.ts VerdictCap renders
+        the queued cap correctly."""
+        return {
+            "id": f"queued-{i}", "objective": "", "title": "queued attack", "mode": "",
+            "severity": "medium", "pillar": "security" if i % 2 == 0 else "compliance",
+            "technique": "", "persona": "", "regulation": [], "goal": "", "status": "queued",
+            "turns": [], "phasePlan": [], "arc": [], "beats": [], "arcComplete": False,
+            "pivotTurn": None, "verdict": None, "incidentId": None,
+            "contact": {"id": None, "name": ""},
+        }
+
+    def _running_play(self, live: dict) -> dict:
+        """A _play-shaped card for the in-flight play, built from the in-memory _LIVE cursor. Snapshot-copy
+        the turns list (the runner coroutine appends to it in the same event loop) to avoid
+        mutation-during-iteration. verdict MUST be None until the real Attempt lands. pickFocus() in
+        runview.ts auto-focuses this because status is 'running'/'judging'."""
+        tv = [{"idx": t.get("idx"), "phase": t.get("phase"), "intent": t.get("intent"),
+               "attacker": t.get("attacker"), "agent": t.get("agent"), "label": t.get("label") or "Unknown",
+               "complianceClean": t.get("complianceClean")}
+              for t in list(live.get("turns") or [])]
+        arc = _build_arc(tv)
+        tech = self.library.technique(live.get("technique_slug")) if (self.library and live.get("technique_slug")) else None
+        phase_plan = [{"name": ph.name, "intent": ph.intent} for ph in (tech.phase_plan if tech else [])]
+        status = "judging" if live.get("phase") == "judging" else "running"
+        return {
+            "id": live.get("objective_slug") or "running", "objective": live.get("objective_slug") or "",
+            "title": live.get("title") or "attack in progress", "mode": live.get("mode") or "",
+            "severity": live.get("severity") or "medium", "pillar": live.get("pillar") or "compliance",
+            "technique": live.get("technique_slug") or "", "persona": live.get("persona") or "",
+            "regulation": [], "goal": "", "status": status, "turns": tv, "phasePlan": phase_plan,
+            "arc": arc["arc"], "beats": arc["beats"], "arcComplete": False, "pivotTurn": arc["pivotTurn"],
+            "verdict": None, "incidentId": None,
+            "contact": {"id": live.get("contact_id"), "name": live.get("contact_name") or ""},
         }
 
     def _verdict(self, attempt, turns, status) -> dict:
