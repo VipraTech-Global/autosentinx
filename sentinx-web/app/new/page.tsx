@@ -11,7 +11,7 @@ type Phase = "form" | "checking" | "approve" | "approving";
 
 export default function RunConfigPage() {
   const router = useRouter();
-  const [endpoint, setEndpoint] = useState("https://aarav-api-793989842362.asia-south1.run.app");
+  const [endpoint, setEndpoint] = useState("https://aarav-api-jqubnul4za-el.a.run.app");
   const [agent, setAgent] = useState("AARAV — NBFC voice debt-collection agent");
   const [advanced, setAdvanced] = useState(false);
   const [token, setToken] = useState("");
